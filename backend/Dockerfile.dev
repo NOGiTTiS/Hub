@@ -1,0 +1,23 @@
+# Development Dockerfile for TUNorth-Hub Go Backend with Air hot reload
+FROM golang:1.25-alpine
+
+WORKDIR /app
+
+# Install git, certificates, and Air
+RUN apk add --no-cache git ca-certificates tzdata
+RUN go install github.com/air-verse/air@latest
+
+ENV TZ=Asia/Bangkok
+ENV PORT=8080
+ENV APP_ENV=development
+ENV UPLOAD_DIR=/var/tunorth_data/uploads
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+# In development, source code is mounted as a volume
+COPY . .
+
+EXPOSE 8080
+
+CMD ["air", "-c", ".air.toml"]

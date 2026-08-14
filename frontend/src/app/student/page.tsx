@@ -1,0 +1,399 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import Link from "next/link"
+import { useAuth } from "@/lib/auth-context"
+import { apiFetch } from "@/lib/api"
+import {
+  BookOpen,
+  GraduationCap,
+  PlayCircle,
+  CheckCircle2,
+  Clock,
+  Layers,
+  FileText,
+  User,
+  ArrowRight,
+  Loader2,
+  Sparkles,
+  TrendingUp,
+  Award,
+} from "lucide-react"
+import { CertificateModal, CertificateData } from "@/components/certificate-modal"
+
+interface CourseCatalogItem {
+  id: string
+  title: string
+  description: string
+  cover_image_url: string
+  is_published: boolean
+  teacher?: {
+    first_name: string
+    last_name: string
+  }
+  modules_count: number
+  lessons_count: number
+  is_enrolled: boolean
+  progress_percent: number
+}
+
+interface MyEnrolledCourse {
+  enrollment_id: string
+  course: {
+    id: string
+    title: string
+    description: string
+    cover_image_url: string
+    teacher?: {
+      first_name: string
+      last_name: string
+    }
+  }
+  completed_lessons: string[]
+  progress_percent: number
+  enrolled_at: string
+  modules_count: number
+  lessons_count: number
+}
+
+export default function StudentDashboardPage() {
+  const { user } = useAuth()
+  const [catalog, setCatalog] = useState<CourseCatalogItem[]>([])
+  const [myCourses, setMyCourses] = useState<MyEnrolledCourse[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [enrollingId, setEnrollingId] = useState<string | null>(null)
+
+  // Certificate Modal State
+  const [showCertModal, setShowCertModal] = useState(false)
+  const [certData, setCertData] = useState<CertificateData | null>(null)
+  const [loadingCertId, setLoadingCertId] = useState<string | null>(null)
+
+  const handleOpenCertificate = async (courseId: string) => {
+    setLoadingCertId(courseId)
+    const res = await apiFetch<CertificateData>(`/api/student/courses/${courseId}/certificate`)
+    if (res.success && res.data) {
+      setCertData(res.data)
+      setShowCertModal(true)
+    } else {
+      alert(res.message || "ไม่สามารถดึงข้อมูลใบประกาศนียบัตรได้")
+    }
+    setLoadingCertId(null)
+  }
+
+  const fetchData = async () => {
+    setIsLoading(true)
+    const [catRes, myRes] = await Promise.all([
+      apiFetch<CourseCatalogItem[]>("/api/student/courses"),
+      apiFetch<MyEnrolledCourse[]>("/api/student/my-courses"),
+    ])
+
+    if (catRes.success && catRes.data) {
+      setCatalog(catRes.data)
+    }
+    if (myRes.success && myRes.data) {
+      setMyCourses(myRes.data)
+    }
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const handleEnroll = async (courseId: string) => {
+    setEnrollingId(courseId)
+    const res = await apiFetch(`/api/student/courses/${courseId}/enroll`, {
+      method: "POST",
+    })
+    if (res.success) {
+      await fetchData()
+    }
+    setEnrollingId(null)
+  }
+
+  // Calculate student average progress
+  const averageProgress =
+    myCourses.length > 0
+      ? Math.round(
+          myCourses.reduce((acc, c) => acc + (c.progress_percent || 0), 0) / myCourses.length
+        )
+      : 0
+
+  const totalCompletedLessons = myCourses.reduce(
+    (acc, c) => acc + (c.completed_lessons?.length || 0),
+    0
+  )
+
+  return (
+    <div className="space-y-8">
+      {/* HERO BANNER */}
+      <div className="bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="max-w-2xl">
+            <span className="inline-block bg-white/10 backdrop-blur-md border border-white/20 text-brand-200 text-xs font-semibold px-3 py-1 rounded-full mb-3">
+              Student Learning Hub · ศูนย์การเรียนรู้นักเรียน
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              สวัสดี, {user?.first_name} {user?.last_name}
+            </h1>
+            <p className="text-brand-100 text-xs sm:text-sm mt-2 leading-relaxed">
+              {user?.grade_level ? `ระดับชั้น ${user.grade_level}` : "นักเรียน"} {user?.classroom ? `ห้อง ${user.classroom}` : ""} · เข้าเรียนคอร์สวิชา ฝึกเขียนโค้ด ส่งการบ้าน และติดตามความก้าวหน้าของคุณได้ทุกที่ทุกเวลา
+            </p>
+          </div>
+
+          {myCourses.length > 0 && (
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-center shrink-0 min-w-[160px]">
+              <span className="text-[11px] text-brand-200 font-semibold uppercase tracking-wider">
+                ความก้าวหน้าเฉลี่ย
+              </span>
+              <div className="text-3xl font-black mt-1 text-white">{averageProgress}%</div>
+              <div className="w-full bg-white/20 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div
+                  className="bg-brand-300 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${averageProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* QUICK STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-brand-100 dark:bg-brand-950 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
+            <GraduationCap className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">คอร์สที่ลงทะเบียน</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">
+              {myCourses.length} คอร์ส
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">บทเรียนที่เรียนจบแล้ว</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">
+              {totalCompletedLessons} บท
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">สถานะการเรียนรู้</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">
+              {myCourses.length > 0 ? "กำลังศึกษา" : "พร้อมเรียน"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MY ENROLLED COURSES (IF ANY) */}
+      {myCourses.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <PlayCircle className="w-5 h-5 text-brand-600" />
+                คอร์สที่กำลังเรียนอยู่ (My Courses)
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                เรียนต่อจากจุดที่ค้างไว้เพื่อสะสมความก้าวหน้า
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {myCourses.map((item) => (
+              <div
+                key={item.enrollment_id}
+                className="p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition flex flex-col justify-between gap-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-900">
+                      ลงทะเบียนแล้ว
+                    </span>
+                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                      {item.progress_percent}% สำเร็จ
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      {item.course.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      {item.course.description || "วิชาออนไลน์สำหรับนักเรียน"}
+                    </p>
+                  </div>
+
+                  {/* PROGRESS BAR */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-brand-600 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${item.progress_percent}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>เรียนแล้ว {item.completed_lessons?.length || 0} / {item.lessons_count} บท</span>
+                      {item.progress_percent === 100 && (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                          🎉 เรียนครบ 100% แล้ว
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs text-slate-500 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5" />
+                    ครู{item.course.teacher?.first_name} {item.course.teacher?.last_name}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {item.progress_percent === 100 && (
+                      <button
+                        type="button"
+                        disabled={loadingCertId === item.course.id}
+                        onClick={() => handleOpenCertificate(item.course.id)}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 font-bold text-xs hover:bg-amber-500/20 transition"
+                      >
+                        {loadingCertId === item.course.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Award className="w-3.5 h-3.5 text-amber-500" />
+                        )}
+                        เกียรติบัตร
+                      </button>
+                    )}
+
+                    <Link
+                      href={`/student/courses/${item.course.id}`}
+                      className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition"
+                    >
+                      เข้าห้องเรียน
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ALL AVAILABLE COURSES CATALOG */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-brand-600" />
+            รายวิชาทั้งหมดที่เปิดสอน (Course Catalog)
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            เลือกรายวิชาที่สนใจเพื่อเริ่มลงทะเบียนและเข้าเรียนออนไลน์
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
+            <p className="text-xs">กำลังโหลดรายการวิชา...</p>
+          </div>
+        ) : catalog.length === 0 ? (
+          <div className="py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center p-6 space-y-2">
+            <BookOpen className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto" />
+            <h3 className="font-bold text-slate-800 dark:text-slate-200">ยังไม่มีรายวิชาที่เปิดสอน</h3>
+            <p className="text-xs text-slate-500">
+              เมื่อคุณครูเปิดเผยแพร่คอร์ส รายวิชาจะปรากฏให้เข้าเรียนที่นี่
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {catalog.map((course) => (
+              <div
+                key={course.id}
+                className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:border-brand-500/50 transition overflow-hidden flex flex-col justify-between group shadow-sm hover:shadow-md"
+              >
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">
+                      มัธยมศึกษา
+                    </span>
+                    {course.is_enrolled && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                        ✓ ลงทะเบียนแล้ว ({course.progress_percent}%)
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 transition">
+                      {course.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                      {course.description || "รายวิชาการเรียนรู้ออนไลน์สำหรับนักเรียน"}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                    <span className="flex items-center gap-1">
+                      <Layers className="w-3.5 h-3.5 text-brand-500" />
+                      {course.modules_count} โมดูล
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                      {course.lessons_count} บทเรียน
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[50%]">
+                    ครู{course.teacher?.first_name} {course.teacher?.last_name}
+                  </span>
+
+                  {course.is_enrolled ? (
+                    <Link
+                      href={`/student/courses/${course.id}`}
+                      className="inline-flex items-center gap-1 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition shrink-0"
+                    >
+                      เข้าเรียนต่อ
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={enrollingId === course.id}
+                      onClick={() => handleEnroll(course.id)}
+                      className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition shrink-0 disabled:opacity-50"
+                    >
+                      {enrollingId === course.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      ลงทะเบียนเรียนฟรี
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* CERTIFICATE MODAL */}
+      {showCertModal && certData && (
+        <CertificateModal cert={certData} onClose={() => setShowCertModal(false)} />
+      )}
+    </div>
+  )
+}

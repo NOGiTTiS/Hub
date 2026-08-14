@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-prompt), var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-en: var(--font-inter), system-ui, sans-serif;
+
+  --color-brand-50: #f5f0ff;
+  --color-brand-100: #ebd9ff;
+  --color-brand-200: #d7b3ff;
+  --color-brand-300: #ba7eff;
+  --color-brand-400: #9d47ff;
+  --color-brand-500: #5f06c4;
+  --color-brand-600: #5203ad;
+  --color-brand-700: #430293;
+  --color-brand-800: #38037a;
+  --color-brand-900: #2f0463;
+  --color-brand-950: #1a023b;
+}
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Custom Scrollbar for sleek UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.4);
+}
