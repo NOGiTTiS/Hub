@@ -213,6 +213,56 @@ func (h *StudentCourseHandler) EnrollCourse(c *fiber.Ctx) error {
 	})
 }
 
+// UnenrollCourse unenrolls/drops a student from a course
+func (h *StudentCourseHandler) UnenrollCourse(c *fiber.Ctx) error {
+	claims := middleware.GetCurrentUser(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "กรุณาเข้าสู่ระบบ",
+		})
+	}
+
+	courseID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสคอร์สไม่ถูกต้อง",
+		})
+	}
+
+	// 1. Check if enrollment exists
+	var enrollment models.Enrollment
+	if err := h.db.DB.Where("student_id = ? AND course_id = ?", claims.UserID, courseID).First(&enrollment).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบข้อมูลการลงทะเบียนในรายวิชานี้ หรือได้ยกเลิกไปแล้ว",
+		})
+	}
+
+	// 2. Check if a certificate has already been issued for this student & course
+	var cert models.Certificate
+	if err := h.db.DB.Where("student_id = ? AND course_id = ?", claims.UserID, courseID).First(&cert).Error; err == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถยกเลิกการลงทะเบียนได้ เนื่องจากท่านสำเร็จการศึกษาและได้รับใบประกาศนียบัตรแล้ว",
+		})
+	}
+
+	// 3. Delete enrollment record
+	if err := h.db.DB.Delete(&enrollment).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถยกเลิกการลงทะเบียนได้ กรุณาลองใหม่อีกครั้ง",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "ยกเลิกการลงทะเบียนรายวิชาเรียบร้อยแล้ว",
+	})
+}
+
 // GetCoursePlayer returns full course data for the Course Player
 func (h *StudentCourseHandler) GetCoursePlayer(c *fiber.Ctx) error {
 	claims := middleware.GetCurrentUser(c)
@@ -231,20 +281,13 @@ func (h *StudentCourseHandler) GetCoursePlayer(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch or auto-enroll
+	// Fetch enrollment (Must be enrolled before accessing player)
 	var enrollment models.Enrollment
 	if err := h.db.DB.Where("student_id = ? AND course_id = ?", claims.UserID, courseID).First(&enrollment).Error; err != nil {
-		// Auto-enroll if published
-		enrollment = models.Enrollment{
-			ID:               uuid.New(),
-			StudentID:        claims.UserID,
-			CourseID:         courseID,
-			CompletedLessons: "[]",
-			ProgressPercent:  0,
-			EnrolledAt:       time.Now(),
-			UpdatedAt:        time.Now(),
-		}
-		_ = h.db.DB.Create(&enrollment)
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "คุณยังไม่ได้ลงทะเบียนในรายวิชานี้ กรุณาลงทะเบียนเรียนก่อนเข้าสู่บทเรียน",
+		})
 	}
 
 	// Fetch full Course structure

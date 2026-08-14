@@ -59,8 +59,13 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	settingsHandler := handlers.NewSettingsHandler(db, cfg)
 	api.Get("/settings/public", settingsHandler.GetPublicSettings)
 
-	// Admin Routes
+	// Handlers
 	adminUserHandler := handlers.NewAdminUserHandler(db)
+	courseHandler := handlers.NewCourseHandler(db)
+	assignmentHandler := handlers.NewAssignmentHandler(db)
+	quizHandler := handlers.NewQuizHandler(db)
+
+	// Admin Routes
 	adminGroup := api.Group("/admin", middleware.RequireAuth(cfg), middleware.RequireRole(models.RoleAdmin))
 	
 	adminGroup.Get("/stats/users", adminUserHandler.GetUserStats)
@@ -73,12 +78,10 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	adminGroup.Get("/settings", settingsHandler.GetAdminSettings)
 	adminGroup.Put("/settings", settingsHandler.UpdateAdminSettings)
 	adminGroup.Get("/settings/system-health", settingsHandler.GetSystemHealth)
+	adminGroup.Get("/courses/:id/students", courseHandler.ListCourseStudents)
+	adminGroup.Delete("/courses/:id/students/:studentId", courseHandler.RemoveStudentFromCourse)
 
 	// Teacher Routes (Course, Content, Assignments, Quizzes Management)
-	courseHandler := handlers.NewCourseHandler(db)
-	assignmentHandler := handlers.NewAssignmentHandler(db)
-	quizHandler := handlers.NewQuizHandler(db)
-
 	teacherGroup := api.Group("/teacher", middleware.RequireAuth(cfg), middleware.RequireRole(models.RoleTeacher))
 	
 	teacherGroup.Get("/courses", courseHandler.ListTeacherCourses)
@@ -87,6 +90,8 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	teacherGroup.Put("/courses/:id", courseHandler.UpdateCourse)
 	teacherGroup.Delete("/courses/:id", courseHandler.DeleteCourse)
 	teacherGroup.Patch("/courses/:id/publish", courseHandler.TogglePublishCourse)
+	teacherGroup.Get("/courses/:id/students", courseHandler.ListCourseStudents)
+	teacherGroup.Delete("/courses/:id/students/:studentId", courseHandler.RemoveStudentFromCourse)
 
 	// Modules & Lessons management
 	teacherGroup.Post("/courses/:courseId/modules", courseHandler.CreateModule)
@@ -124,6 +129,7 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	studentGroup.Get("/courses", studentCourseHandler.ListPublishedCourses)
 	studentGroup.Get("/my-courses", studentCourseHandler.GetMyCourses)
 	studentGroup.Post("/courses/:id/enroll", studentCourseHandler.EnrollCourse)
+	studentGroup.Delete("/courses/:id/enroll", studentCourseHandler.UnenrollCourse)
 	studentGroup.Get("/courses/:id/player", studentCourseHandler.GetCoursePlayer)
 	studentGroup.Post("/courses/:id/lessons/:lessonId/progress", studentCourseHandler.UpdateLessonProgress)
 

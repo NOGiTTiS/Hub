@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api"
+import { toast } from "@/lib/toast"
 import {
   ArrowLeft,
   BookOpen,
@@ -25,6 +26,11 @@ import {
   Settings,
   X,
   ExternalLink,
+  Users,
+  UserMinus,
+  AlertTriangle,
+  Search,
+  Award,
 } from "lucide-react"
 import { FileUploader } from "@/components/file-uploader"
 import { VideoPlayer } from "@/components/video-player"
@@ -54,6 +60,22 @@ interface Module {
   lessons?: Lesson[]
 }
 
+interface EnrolledStudent {
+  enrollment_id: string
+  student_id: string
+  student: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    grade_level?: string
+    classroom?: string
+  }
+  progress_percent: number
+  enrolled_at: string
+  has_certificate: boolean
+}
+
 interface Course {
   id: string
   title: string
@@ -76,6 +98,45 @@ export default function TeacherCourseBuilderPage() {
   const [course, setCourse] = useState<Course | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Enrolled Students Modal States
+  const [showStudentsModal, setShowStudentsModal] = useState(false)
+  const [studentsList, setStudentsList] = useState<EnrolledStudent[]>([])
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
+  const [studentToRemove, setStudentToRemove] = useState<EnrolledStudent | null>(null)
+  const [isRemovingStudent, setIsRemovingStudent] = useState(false)
+  const [searchStudentQuery, setSearchStudentQuery] = useState("")
+
+  const handleOpenStudentsModal = async () => {
+    setShowStudentsModal(true)
+    setIsLoadingStudents(true)
+    const res = await apiFetch<EnrolledStudent[]>(`/api/teacher/courses/${courseId}/students`)
+    if (res.success && res.data) {
+      setStudentsList(res.data)
+    } else {
+      toast.error(res.message || "ไม่สามารถดึงรายชื่อผู้เรียนได้")
+    }
+    setIsLoadingStudents(false)
+  }
+
+  const handleConfirmRemoveStudent = async () => {
+    if (!studentToRemove) return
+    setIsRemovingStudent(true)
+    const res = await apiFetch(`/api/teacher/courses/${courseId}/students/${studentToRemove.student_id}`, {
+      method: "DELETE",
+    })
+    if (res.success) {
+      toast.success(`ถอน ${studentToRemove.student.first_name} ${studentToRemove.student.last_name} ออกจากรายวิชาเรียบร้อยแล้ว`)
+      setStudentToRemove(null)
+      const resUpdated = await apiFetch<EnrolledStudent[]>(`/api/teacher/courses/${courseId}/students`)
+      if (resUpdated.success && resUpdated.data) {
+        setStudentsList(resUpdated.data)
+      }
+    } else {
+      toast.error(res.message || "ไม่สามารถถอนนักเรียนได้")
+    }
+    setIsRemovingStudent(false)
+  }
 
   // Module Modal states
   const [showModuleModal, setShowModuleModal] = useState(false)
@@ -401,6 +462,15 @@ export default function TeacherCourseBuilderPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleOpenStudentsModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition shadow-sm"
+          >
+            <Users className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+            รายชื่อผู้เรียน
+          </button>
+
           <button
             type="button"
             onClick={() => setShowCourseMetaModal(true)}
@@ -979,6 +1049,227 @@ export default function TeacherCourseBuilderPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ENROLLED STUDENTS MODAL */}
+      {showStudentsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-4xl w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-100 dark:bg-brand-950 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                      รายชื่อนักเรียนที่ลงทะเบียนเรียน
+                    </h3>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-900">
+                      {studentsList.length} คน
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    วิชา: {course.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStudentsModal(false)
+                  setSearchStudentQuery("")
+                }}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* SEARCH BOX */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="ค้นหาตามชื่อ นามสกุล อีเมล หรือห้องเรียน..."
+                value={searchStudentQuery}
+                onChange={(e) => setSearchStudentQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            {/* STUDENTS LIST TABLE */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {isLoadingStudents ? (
+                <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+                  <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
+                  <p className="text-xs font-semibold">กำลังโหลดรายชื่อนักเรียน...</p>
+                </div>
+              ) : studentsList.length === 0 ? (
+                <div className="py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2 p-6">
+                  <Users className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto" />
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">ยังไม่มีนักเรียนลงทะเบียนในวิชานี้</h4>
+                  <p className="text-xs text-slate-400">
+                    เมื่อนักเรียนกดลงทะเบียนเข้าเรียน รายชื่อและความก้าวหน้าจะปรากฏที่นี่
+                  </p>
+                </div>
+              ) : (
+                <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-800 text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4">ชื่อ - นามสกุล</th>
+                        <th className="py-3 px-3">ชั้น / ห้อง</th>
+                        <th className="py-3 px-3">วันที่ลงทะเบียน</th>
+                        <th className="py-3 px-3">ความก้าวหน้า</th>
+                        <th className="py-3 px-3 text-right">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                      {studentsList
+                        .filter((item) => {
+                          if (!searchStudentQuery.trim()) return true
+                          const q = searchStudentQuery.toLowerCase()
+                          const fullName = `${item.student.first_name} ${item.student.last_name}`.toLowerCase()
+                          const email = item.student.email.toLowerCase()
+                          const room = `${item.student.grade_level || ""} ${item.student.classroom || ""}`.toLowerCase()
+                          return fullName.includes(q) || email.includes(q) || room.includes(q)
+                        })
+                        .map((item) => (
+                          <tr key={item.enrollment_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/40 transition">
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900 dark:text-white">
+                                {item.student.first_name} {item.student.last_name}
+                              </div>
+                              <div className="text-[11px] text-slate-400">
+                                {item.student.email}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                                {item.student.grade_level ? `${item.student.grade_level}` : "มัธยม"} {item.student.classroom ? `/${item.student.classroom}` : ""}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-slate-500 dark:text-slate-400">
+                              {new Date(item.enrolled_at).toLocaleDateString("th-TH", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </td>
+                            <td className="py-3 px-3 min-w-[130px]">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                <span>{item.progress_percent}%</span>
+                                {item.has_certificate && (
+                                  <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 text-[10px]">
+                                    <Award className="w-3 h-3 text-amber-500" />
+                                    จบหลักสูตร
+                                  </span>
+                                )}
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    item.progress_percent === 100 ? "bg-emerald-500" : "bg-brand-600"
+                                  }`}
+                                  style={{ width: `${item.progress_percent}%` }}
+                                />
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              {item.has_certificate ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 rounded-lg cursor-not-allowed"
+                                  title="นักเรียนได้รับใบประกาศนียบัตรแล้ว ไม่อนุญาตให้ถอนรายวิชา"
+                                >
+                                  <Award className="w-3 h-3 text-amber-500" />
+                                  สำเร็จการศึกษา
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setStudentToRemove(item)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition"
+                                  title="ถอนนักเรียนออกจากรายวิชา"
+                                >
+                                  <UserMinus className="w-3.5 h-3.5" />
+                                  ถอน
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-400">
+              <span>รวม {studentsList.length} คน</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStudentsModal(false)
+                  setSearchStudentQuery("")
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM REMOVE STUDENT DIALOG */}
+      {studentToRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  ยืนยันการถอนนักเรียน
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  ถอนนักเรียนออกจากรายวิชานี้
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 space-y-2 text-xs">
+              <div className="font-bold text-rose-900 dark:text-rose-200">
+                นักเรียน: {studentToRemove.student.first_name} {studentToRemove.student.last_name} ({studentToRemove.student.email})
+              </div>
+              <p className="text-rose-700 dark:text-rose-300 leading-relaxed">
+                ⚠️ เมื่อถอนนักเรียนออก ข้อมูลการลงทะเบียนและความก้าวหน้าในการเรียนในวิชานี้ของนักเรียนจะถูกยกเลิก และนักเรียนจะไม่สามารถเข้าห้องเรียนนี้ได้จนกว่าจะลงทะเบียนใหม่
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isRemovingStudent}
+                onClick={() => setStudentToRemove(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isRemovingStudent}
+                onClick={handleConfirmRemoveStudent}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20 transition disabled:opacity-50"
+              >
+                {isRemovingStudent && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                ยืนยันการถอนนักเรียน
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -23,6 +23,8 @@ import {
   AlertCircle,
   Sparkles,
   BookOpen,
+  UserMinus,
+  AlertTriangle,
 } from "lucide-react"
 import { VideoPlayer } from "@/components/video-player"
 import { PDFViewer } from "@/components/pdf-viewer"
@@ -85,6 +87,11 @@ export default function StudentCoursePlayerPage() {
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
+  // Error & Unenroll Modal State
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showUnenrollModal, setShowUnenrollModal] = useState(false)
+  const [isUnenrolling, setIsUnenrolling] = useState(false)
+
   // Certificate Modal State
   const [showCertModal, setShowCertModal] = useState(false)
   const [certData, setCertData] = useState<CertificateData | null>(null)
@@ -102,8 +109,24 @@ export default function StudentCoursePlayerPage() {
     setIsLoadingCert(false)
   }
 
+  const handleConfirmUnenroll = async () => {
+    setIsUnenrolling(true)
+    const res = await apiFetch(`/api/student/courses/${courseId}/enroll`, {
+      method: "DELETE",
+    })
+    if (res.success) {
+      toast.success("ยกเลิกการลงทะเบียนรายวิชาเรียบร้อยแล้ว")
+      router.push("/student")
+    } else {
+      toast.error(res.message || "ไม่สามารถยกเลิกการลงทะเบียนได้")
+      setIsUnenrolling(false)
+      setShowUnenrollModal(false)
+    }
+  }
+
   const fetchPlayerData = async () => {
     setIsLoading(true)
+    setErrorMessage(null)
     const res = await apiFetch<CoursePlayerData>(`/api/student/courses/${courseId}/player`)
     if (res.success && res.data) {
       const data = res.data
@@ -123,6 +146,8 @@ export default function StudentCoursePlayerPage() {
           setActiveLesson(firstUncompleted || firstMod.lessons[0])
         }
       }
+    } else {
+      setErrorMessage(res.message || "ไม่สามารถเข้าสู่ห้องเรียนได้ กรุณาลงทะเบียนเรียนก่อน")
     }
     setIsLoading(false)
   }
@@ -189,15 +214,26 @@ export default function StudentCoursePlayerPage() {
 
   if (!playerData) {
     return (
-      <div className="py-16 text-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">ไม่พบคอร์สวิชานี้</h2>
-        <Link
-          href="/student"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold"
-        >
-          <ArrowLeft className="w-4 h-4" /> กลับสู่หน้าหลักนักเรียน
-        </Link>
+      <div className="py-20 max-w-md mx-auto text-center space-y-5 px-4 animate-fade-in">
+        <div className="w-16 h-16 rounded-3xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-sm">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            {errorMessage || "ไม่พบคอร์สวิชา หรือยังไม่ได้ลงทะเบียน"}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+            กรุณาตรวจสอบการลงทะเบียนเรียนในหน้าศูนย์การเรียนรู้ของนักเรียนก่อนเข้าสู่บทเรียน
+          </p>
+        </div>
+        <div className="pt-2">
+          <Link
+            href="/student"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow-md transition"
+          >
+            <ArrowLeft className="w-4 h-4" /> กลับสู่หน้าหลักนักเรียน
+          </Link>
+        </div>
       </div>
     )
   }
@@ -243,7 +279,7 @@ export default function StudentCoursePlayerPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
               type="button"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -252,6 +288,18 @@ export default function StudentCoursePlayerPage() {
               <Menu className="w-4 h-4" />
               สารบัญบทเรียน
             </button>
+
+            {progressPercent < 100 && (
+              <button
+                type="button"
+                onClick={() => setShowUnenrollModal(true)}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition"
+                title="ถอนรายวิชา"
+              >
+                <UserMinus className="w-3.5 h-3.5" />
+                ถอนรายวิชา
+              </button>
+            )}
 
             {progressPercent === 100 && (
               <button
@@ -263,9 +311,9 @@ export default function StudentCoursePlayerPage() {
                 {isLoadingCert ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Trophy className="w-4 h-4" />
+                  <Trophy className="w-4 h-4 text-slate-950" />
                 )}
-                ดูใบประกาศนียบัตร (Certificate)
+                รับใบประกาศนียบัตร
               </button>
             )}
           </div>
@@ -513,6 +561,56 @@ export default function StudentCoursePlayerPage() {
           </div>
         </div>
       </div>
+
+      {/* UNENROLL CONFIRMATION MODAL */}
+      {showUnenrollModal && playerData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-scale-in">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  ยืนยันการถอนรายวิชา
+                </h3>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  ยกเลิกการลงทะเบียนเรียนในรายวิชานี้
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 space-y-2 text-xs">
+              <div className="font-bold text-rose-900 dark:text-rose-200">
+                วิชา: {playerData.course.title}
+              </div>
+              <p className="text-rose-700 dark:text-rose-300 leading-relaxed">
+                ⚠️ เมื่อกดยืนยันการถอนรายวิชา ความก้าวหน้าในการเรียนทั้งหมดจะถูกรีเซ็ต และท่านจะไม่สามารถเข้าสู่ห้องเรียนได้จนกว่าจะลงทะเบียนใหม่
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isUnenrolling}
+                onClick={() => setShowUnenrollModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isUnenrolling}
+                onClick={handleConfirmUnenroll}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20 transition disabled:opacity-50"
+              >
+                {isUnenrolling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                ยืนยันการถอนรายวิชา
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CERTIFICATE MODAL */}
       {showCertModal && certData && (

@@ -211,6 +211,10 @@
 | `PUT` | `/api/teacher/lessons/:id` | TEACHER | แก้ไขข้อมูลบทเรียนย่อย |
 | `DELETE`| `/api/teacher/lessons/:id` | TEACHER | ลบบทเรียนย่อย |
 | `POST` | `/api/teacher/modules/:moduleId/lessons/reorder` | TEACHER | บันทึกลำดับบทเรียนใหม่ (Reorder) |
+| `GET` | `/api/teacher/courses/:id/students` | TEACHER | ดึงรายชื่อนักเรียนทั้งหมดที่ลงทะเบียนในคอร์ส พร้อมความก้าวหน้า |
+| `DELETE`| `/api/teacher/courses/:id/students/:studentId` | TEACHER | ถอน/ยกเลิกการลงทะเบียนของนักเรียนออกจากรายวิชา (บล็อกการถอนหากได้รับ Certificate แล้ว) |
+| `GET` | `/api/admin/courses/:id/students` | ADMIN | ดึงรายชื่อนักเรียนในรายวิชาใดๆ (Admin Scope) |
+| `DELETE`| `/api/admin/courses/:id/students/:studentId` | ADMIN | ถอนนักเรียนออกจากรายวิชาใดๆ พร้อมเพิกถอน Certificate หากมี (Admin Scope) |
 
 ### 3.3 การจัดการการบ้านและการประเมินผล (Teacher Assessment & Grading API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
@@ -236,7 +240,8 @@
 | `GET` | `/api/student/courses` | STUDENT | รายการวิชาทั้งหมดที่เปิดเผยแพร่ (Catalog) |
 | `GET` | `/api/student/my-courses` | STUDENT | รายการวิชาที่ตนเองลงทะเบียนไว้ พร้อม % Progress |
 | `POST` | `/api/student/courses/:id/enroll` | STUDENT | ลงทะเบียนเข้าเรียนในรายวิชา |
-| `GET` | `/api/student/courses/:id/player` | STUDENT | ดึงข้อมูลห้องเรียน สารบัญบทเรียน และสถานะการเรียน |
+| `DELETE`| `/api/student/courses/:id/enroll` | STUDENT | ยกเลิกการลงทะเบียน / ถอนรายวิชา (Drop Course) พร้อมรีเซ็ตความก้าวหน้า |
+| `GET` | `/api/student/courses/:id/player` | STUDENT | ดึงข้อมูลห้องเรียน สารบัญบทเรียน และสถานะการเรียน (Player Gate ป้องกันผู้ยังไม่ลงทะเบียน) |
 | `POST` | `/api/student/courses/:id/lessons/:lessonId/progress` | STUDENT | บันทึกเรียนจบ/ยกเลิก และคำนวณ % ความก้าวหน้าใหม่ |
 | `GET` | `/api/student/lessons/:lessonId/assignment` | STUDENT | ดึงข้อมูลการบ้านและสถานะการส่งงานของตนเอง |
 | `POST` | `/api/student/assignments/:id/submit` | STUDENT | ส่งการบ้าน (แนบไฟล์/พิมพ์ข้อความคำตอบ) |
@@ -274,7 +279,7 @@
 - [x] Implement File Upload Service in Go Backend (Handling MP4 Videos, PDF Documents, Cover Images)
 - [x] Implement Video Embed & PDF Viewer Components in Next.js 16
 - [x] Build Student Course Browsing & Course Player Interface
-- [x] Implement Student Course Progress Tracking API & Real-time Progress Bar
+- [x] Implement **Course Unenrollment & Student Management System** (Student Drop Course with Confirmation Modal, Player Gate Protection, Teacher Enrolled Students Management Modal & Table UI, and Admin/Teacher Student Removal API & Handlers)
 
 ### 📌 Phase 4: Assessment, Code Playground & Certificate System
 - [x] Build Assignment Creation, Submission & Grading System (Teacher assigns, Student uploads file/text, Teacher grades & feedbacks)
@@ -340,4 +345,4 @@ docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 10 ตารางรวม SystemSettings, API Endpoints Matrix ที่ตรงกับ Backend จริง, Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 10 ตารางรวม SystemSettings, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*

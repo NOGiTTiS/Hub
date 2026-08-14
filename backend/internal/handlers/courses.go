@@ -621,3 +621,166 @@ func (h *CourseHandler) ReorderLessons(c *fiber.Ctx) error {
 		"message": "จัดเรียงลำดับบทเรียนเรียบร้อยแล้ว",
 	})
 }
+
+// EnrolledStudentItem represents a student enrolled in a course with progress info
+type EnrolledStudentItem struct {
+	EnrollmentID    uuid.UUID   `json:"enrollment_id"`
+	StudentID       uuid.UUID   `json:"student_id"`
+	Student         models.User `json:"student"`
+	ProgressPercent float64     `json:"progress_percent"`
+	EnrolledAt      time.Time   `json:"enrolled_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+	HasCertificate  bool        `json:"has_certificate"`
+}
+
+// ListCourseStudents returns all students enrolled in a course
+func (h *CourseHandler) ListCourseStudents(c *fiber.Ctx) error {
+	claims := middleware.GetCurrentUser(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบข้อมูลผู้ใช้งาน",
+		})
+	}
+
+	courseID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสคอร์สไม่ถูกต้อง",
+		})
+	}
+
+	// Verify course access: teacher must own the course, admin can access all
+	var course models.Course
+	if err := h.db.DB.First(&course, "id = ?", courseID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบคอร์สวิชา",
+		})
+	}
+
+	if claims.Role != models.RoleAdmin && course.TeacherID != claims.UserID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "คุณไม่มีสิทธิ์เข้าถึงข้อมูลผู้เรียนในรายวิชานี้",
+		})
+	}
+
+	var enrollments []models.Enrollment
+	if err := h.db.DB.Where("course_id = ?", courseID).
+		Order("enrolled_at DESC").
+		Find(&enrollments).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถดึงข้อมูลรายชื่อผู้เรียนได้",
+		})
+	}
+
+	results := make([]EnrolledStudentItem, len(enrollments))
+	for i, e := range enrollments {
+		var user models.User
+		_ = h.db.DB.First(&user, "id = ?", e.StudentID)
+
+		var certCount int64
+		h.db.DB.Model(&models.Certificate{}).
+			Where("student_id = ? AND course_id = ?", e.StudentID, courseID).
+			Count(&certCount)
+
+		results[i] = EnrolledStudentItem{
+			EnrollmentID:    e.ID,
+			StudentID:       e.StudentID,
+			Student:         user,
+			ProgressPercent: e.ProgressPercent,
+			EnrolledAt:      e.EnrolledAt,
+			UpdatedAt:       e.UpdatedAt,
+			HasCertificate:  certCount > 0,
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    results,
+	})
+}
+
+// RemoveStudentFromCourse removes/unenrolls a student from a course (for teacher or admin)
+func (h *CourseHandler) RemoveStudentFromCourse(c *fiber.Ctx) error {
+	claims := middleware.GetCurrentUser(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบข้อมูลผู้ใช้งาน",
+		})
+	}
+
+	courseID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสคอร์สไม่ถูกต้อง",
+		})
+	}
+
+	studentID, err := uuid.Parse(c.Params("studentId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสนักเรียนไม่ถูกต้อง",
+		})
+	}
+
+	// Verify course permission
+	var course models.Course
+	if err := h.db.DB.First(&course, "id = ?", courseID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบคอร์สวิชา",
+		})
+	}
+
+	if claims.Role != models.RoleAdmin && course.TeacherID != claims.UserID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "คุณไม่มีสิทธิ์จัดการผู้เรียนในรายวิชานี้",
+		})
+	}
+
+	// Find enrollment
+	var enrollment models.Enrollment
+	if err := h.db.DB.Where("student_id = ? AND course_id = ?", studentID, courseID).First(&enrollment).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบข้อมูลการลงทะเบียนของนักเรียนในรายวิชานี้",
+		})
+	}
+
+	// Check if student already has a certificate issued
+	var cert models.Certificate
+	hasCert := h.db.DB.Where("student_id = ? AND course_id = ?", studentID, courseID).First(&cert).Error == nil
+
+	if hasCert {
+		// Teachers are NOT allowed to remove certified students
+		if claims.Role != models.RoleAdmin {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่สามารถถอนนักเรียนได้ เนื่องจากนักเรียนสำเร็จการศึกษาและได้รับใบประกาศนียบัตรแล้ว (กรุณาติดต่อผู้ดูแลระบบหากต้องการเพิกถอน)",
+			})
+		}
+		// If Admin, revoke certificate along with enrollment
+		_ = h.db.DB.Delete(&cert)
+	}
+
+	// Delete enrollment
+	if err := h.db.DB.Delete(&enrollment).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถถอนนักเรียนออกจากรายวิชาได้",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "ถอนนักเรียนออกจากรายวิชาเรียบร้อยแล้ว",
+	})
+}

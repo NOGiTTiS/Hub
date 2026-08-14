@@ -127,6 +127,7 @@ D:\Hub
   - [x] Implement Video Embed & PDF Viewer Components in Next.js 16
   - [x] Build Student Course Browsing & Course Player Interface
   - [x] Implement Student Course Progress Tracking API & Real-time Progress Bar
+  - [x] Implement Course Unenrollment & Student Management System (Student Drop Course, Confirmation Dialog, Player Gate & Teacher/Admin Student Removal)
 - [ ] **Phase 4: Assessment, Code Playground & Certificate System** *(Next Step)*
   - [ ] Build Assignment Creation, Submission & Grading System
   - [ ] Build Interactive Quiz Engine (Question Builder, Timer, Auto-Grading Logic, Attempts history)

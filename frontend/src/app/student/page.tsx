@@ -19,6 +19,8 @@ import {
   Sparkles,
   TrendingUp,
   Award,
+  UserMinus,
+  AlertTriangle,
 } from "lucide-react"
 import { CertificateModal, CertificateData } from "@/components/certificate-modal"
 
@@ -113,6 +115,30 @@ export default function StudentDashboardPage() {
       toast.error(res.message || "ไม่สามารถลงทะเบียนได้")
     }
     setEnrollingId(null)
+  }
+
+  // Unenroll Modal State & Handler
+  const [unenrollCourse, setUnenrollCourse] = useState<{
+    id: string
+    title: string
+    hasCert: boolean
+  } | null>(null)
+  const [isUnenrolling, setIsUnenrolling] = useState(false)
+
+  const handleConfirmUnenroll = async () => {
+    if (!unenrollCourse) return
+    setIsUnenrolling(true)
+    const res = await apiFetch(`/api/student/courses/${unenrollCourse.id}/enroll`, {
+      method: "DELETE",
+    })
+    if (res.success) {
+      toast.success("ยกเลิกการลงทะเบียนรายวิชาเรียบร้อยแล้ว")
+      setUnenrollCourse(null)
+      await fetchData()
+    } else {
+      toast.error(res.message || "ไม่สามารถยกเลิกการลงทะเบียนได้")
+    }
+    setIsUnenrolling(false)
   }
 
   // Calculate student average progress
@@ -227,9 +253,25 @@ export default function StudentDashboardPage() {
                     <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-900">
                       ลงทะเบียนแล้ว
                     </span>
-                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
-                      {item.progress_percent}% สำเร็จ
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                        {item.progress_percent}% สำเร็จ
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setUnenrollCourse({
+                            id: item.course.id,
+                            title: item.course.title,
+                            hasCert: item.progress_percent === 100,
+                          })
+                        }
+                        className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                        title="ยกเลิกการลงทะเบียน (ถอนรายวิชา)"
+                      >
+                        <UserMinus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -393,6 +435,61 @@ export default function StudentDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* UNENROLL CONFIRMATION MODAL */}
+      {unenrollCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-scale-in">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  ยืนยันการยกเลิกการลงทะเบียน
+                </h3>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  ถอนรายวิชาออกจากบัญชีการเรียนรู้ของคุณ
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 space-y-2 text-xs">
+              <div className="font-bold text-rose-900 dark:text-rose-200">
+                วิชา: {unenrollCourse.title}
+              </div>
+              <p className="text-rose-700 dark:text-rose-300 leading-relaxed">
+                ⚠️ เมื่อกดยกเลิกการลงทะเบียน ข้อมูลความก้าวหน้าในการเรียนทั้งหมดในรายวิชานี้จะถูกรีเซ็ต หากต้องการกลับมาเรียนใหม่จะต้องกดลงทะเบียนใหม่ตั้งแต่ต้น
+              </p>
+              {unenrollCourse.hasCert && (
+                <p className="text-rose-600 dark:text-rose-400 font-semibold mt-1">
+                  * หากท่านได้รับใบประกาศนียบัตรแล้ว จะไม่สามารถยกเลิกรายวิชานี้ได้
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isUnenrolling}
+                onClick={() => setUnenrollCourse(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isUnenrolling}
+                onClick={handleConfirmUnenroll}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20 transition disabled:opacity-50"
+              >
+                {isUnenrolling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                ยืนยันการถอนรายวิชา
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CERTIFICATE MODAL */}
       {showCertModal && certData && (
