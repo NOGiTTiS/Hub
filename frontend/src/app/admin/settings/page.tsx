@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
+import { toast } from "@/lib/toast"
 import { apiFetch, getMediaUrl } from "@/lib/api"
 import {
   School,
@@ -147,13 +148,12 @@ export default function AdminSettingsPage() {
 
       if (res.success && res.data?.url) {
         handleInputChange(targetKey, res.data.url)
-        setSuccessMessage("อัปโหลดรูปภาพสำเร็จ (อย่าลืมกดปุ่มบันทึกการตั้งค่า)")
-        setTimeout(() => setSuccessMessage(""), 4000)
+        toast.success("อัปโหลดรูปภาพสำเร็จ (อย่าลืมกดปุ่มบันทึกการตั้งค่า)")
       } else {
-        setErrorMessage(res.message || "เกิดข้อผิดพลาดในการอัปโหลดไฟล์")
+        toast.error(res.message || "เกิดข้อผิดพลาดในการอัปโหลดไฟล์")
       }
     } catch {
-      setErrorMessage("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์เพื่ออัปโหลดได้")
+      toast.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์เพื่ออัปโหลดได้")
     } finally {
       setUploading(false)
     }
@@ -174,11 +174,14 @@ export default function AdminSettingsPage() {
           ...prev,
           ...newSettings,
         }))
+        if (showLoading) {
+          toast.success("โหลดข้อมูลการตั้งค่าล่าสุดแล้ว")
+        }
       } else {
-        setErrorMessage(res.message || "ไม่สามารถโหลดการตั้งค่าได้")
+        toast.error(res.message || "ไม่สามารถโหลดการตั้งค่าได้")
       }
     } catch {
-      setErrorMessage("เกิดข้อผิดพลาดในการดึงข้อมูลการตั้งค่า")
+      toast.error("เกิดข้อผิดพลาดในการดึงข้อมูลการตั้งค่า")
     } finally {
       setLoading(false)
     }
@@ -212,7 +215,7 @@ export default function AdminSettingsPage() {
           }))
         }
       } catch {
-        if (!ignore) setErrorMessage("เกิดข้อผิดพลาดในการดึงข้อมูลการตั้งค่า")
+        if (!ignore) toast.error("เกิดข้อผิดพลาดในการดึงข้อมูลการตั้งค่า")
       } finally {
         if (!ignore) setLoading(false)
       }
@@ -252,8 +255,6 @@ export default function AdminSettingsPage() {
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setSaving(true)
-    setSuccessMessage("")
-    setErrorMessage("")
 
     try {
       const res = await apiFetch("/api/admin/settings", {
@@ -262,13 +263,12 @@ export default function AdminSettingsPage() {
       })
 
       if (res.success) {
-        setSuccessMessage("บันทึกการตั้งค่าระบบเรียบร้อยแล้ว")
-        setTimeout(() => setSuccessMessage(""), 4000)
+        toast.success("บันทึกการตั้งค่าระบบเรียบร้อยแล้ว")
       } else {
-        setErrorMessage(res.message || "ไม่สามารถบันทึกการตั้งค่าได้")
+        toast.error(res.message || "ไม่สามารถบันทึกการตั้งค่าได้")
       }
     } catch {
-      setErrorMessage("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์")
+      toast.error("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์")
     } finally {
       setSaving(false)
     }
@@ -356,21 +356,6 @@ export default function AdminSettingsPage() {
           </div>
         )}
       </div>
-
-      {/* NOTIFICATIONS */}
-      {successMessage && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span className="font-medium">{successMessage}</span>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs sm:text-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-          <span className="font-medium">{errorMessage}</span>
-        </div>
-      )}
 
       {/* TABS NAVIGATION */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
@@ -883,7 +868,7 @@ export default function AdminSettingsPage() {
                         >
                           Badge สถานะ
                         </span>
-                        <div className="flex-1 min-w-[120px] max-w-xs space-y-1">
+                        <div className="flex-1 min-w-30 max-w-xs space-y-1">
                           <div className="flex justify-between text-[10px] font-semibold text-slate-500">
                             <span>Progress Bar</span>
                             <span>75%</span>
@@ -942,7 +927,7 @@ export default function AdminSettingsPage() {
                         }
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-brand-600"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-brand-600"></div>
                     </label>
                   </div>
 
@@ -1022,7 +1007,7 @@ export default function AdminSettingsPage() {
                         }
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-brand-600"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-brand-600"></div>
                     </label>
                   </div>
 
@@ -1129,7 +1114,7 @@ export default function AdminSettingsPage() {
                         }
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-rose-600"></div>
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-rose-600"></div>
                     </label>
                   </div>
 

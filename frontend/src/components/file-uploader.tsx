@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useRef } from "react"
+import { toast } from "@/lib/toast"
 import { UploadCloud, File, CheckCircle2, AlertCircle, Loader2, X } from "lucide-react"
 import { API_BASE_URL } from "@/lib/api"
 
@@ -59,8 +60,11 @@ export function FileUploader({
 
       setPreviewUrl(data.data.url)
       onUploadSuccess(data.data.url, data.data)
+      toast.success("อัปโหลดไฟล์เรียบร้อยแล้ว")
     } catch (err: any) {
-      setError(err.message || "อัปโหลดล้มเหลว")
+      const errMsg = err.message || "อัปโหลดล้มเหลว"
+      setError(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsUploading(false)
     }

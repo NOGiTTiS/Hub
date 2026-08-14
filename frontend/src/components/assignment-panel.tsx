@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { toast } from "@/lib/toast"
 import { apiFetch, getMediaUrl } from "@/lib/api"
 import {
   FileCheck2,
@@ -81,7 +82,7 @@ export function AssignmentPanel({ lessonId, onSubmissionSuccess }: AssignmentPan
   const handleSubmit = async (assignmentId: string) => {
     const currentForm = forms[assignmentId] || { submitted_text: "", file_url: "" }
     if (!currentForm.submitted_text.trim() && !currentForm.file_url.trim()) {
-      alert("กรุณากรอกข้อความคำตอบ หรืออัปโหลดไฟล์แนบการบ้าน")
+      toast.error("กรุณากรอกข้อความคำตอบ หรืออัปโหลดไฟล์แนบการบ้าน")
       return
     }
 
@@ -92,8 +93,11 @@ export function AssignmentPanel({ lessonId, onSubmissionSuccess }: AssignmentPan
     })
 
     if (res.success) {
+      toast.success("ส่งการบ้านเรียบร้อยแล้ว!")
       fetchAssignments()
       if (onSubmissionSuccess) onSubmissionSuccess()
+    } else {
+      toast.error(res.message || "เกิดข้อผิดพลาดในการส่งการบ้าน")
     }
     setSubmittingId(null)
   }

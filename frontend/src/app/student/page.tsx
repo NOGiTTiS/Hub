@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
+import { toast } from "@/lib/toast"
 import { useAuth } from "@/lib/auth-context"
 import { apiFetch } from "@/lib/api"
 import {
@@ -75,7 +76,7 @@ export default function StudentDashboardPage() {
       setCertData(res.data)
       setShowCertModal(true)
     } else {
-      alert(res.message || "ไม่สามารถดึงข้อมูลใบประกาศนียบัตรได้")
+      toast.error(res.message || "ไม่สามารถดึงข้อมูลใบประกาศนียบัตรได้")
     }
     setLoadingCertId(null)
   }
@@ -106,7 +107,10 @@ export default function StudentDashboardPage() {
       method: "POST",
     })
     if (res.success) {
+      toast.success("ลงทะเบียนเรียนรายวิชาเรียบร้อยแล้ว!")
       await fetchData()
+    } else {
+      toast.error(res.message || "ไม่สามารถลงทะเบียนได้")
     }
     setEnrollingId(null)
   }

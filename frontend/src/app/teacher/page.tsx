@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
+import { toast } from "@/lib/toast"
 import { useAuth } from "@/lib/auth-context"
 import { apiFetch } from "@/lib/api"
 import {
@@ -65,6 +66,7 @@ export default function TeacherDashboardPage() {
     e.preventDefault()
     if (!newTitle.trim()) {
       setErrorMessage("กรุณากรอกชื่อรายวิชา")
+      toast.error("กรุณากรอกชื่อรายวิชา")
       return
     }
 
@@ -82,13 +84,16 @@ export default function TeacherDashboardPage() {
     })
 
     if (res.success) {
+      toast.success("สร้างรายวิชาใหม่เรียบร้อยแล้ว")
       setShowCreateModal(false)
       setNewTitle("")
       setNewDesc("")
       setNewCoverUrl("")
       fetchCourses()
     } else {
-      setErrorMessage(res.message || "เกิดข้อผิดพลาดในการสร้างรายวิชา")
+      const err = res.message || "เกิดข้อผิดพลาดในการสร้างรายวิชา"
+      setErrorMessage(err)
+      toast.error(err)
     }
     setIsCreating(false)
   }
@@ -98,9 +103,12 @@ export default function TeacherDashboardPage() {
       method: "PATCH",
     })
     if (res.success) {
+      toast.success(!currentStatus ? "เผยแพร่รายวิชาเรียบร้อยแล้ว" : "ปิดการเผยแพร่รายวิชาแล้ว")
       setCourses((prev) =>
         prev.map((c) => (c.id === courseId ? { ...c, is_published: !currentStatus } : c))
       )
+    } else {
+      toast.error(res.message || "ไม่สามารถเปลี่ยนสถานะการเผยแพร่ได้")
     }
   }
 
@@ -113,9 +121,10 @@ export default function TeacherDashboardPage() {
       method: "DELETE",
     })
     if (res.success) {
+      toast.success("ลบรายวิชาเรียบร้อยแล้ว")
       setCourses((prev) => prev.filter((c) => c.id !== courseId))
     } else {
-      alert(res.message || "ไม่สามารถลบรายวิชาได้")
+      toast.error(res.message || "ไม่สามารถลบรายวิชาได้")
     }
   }
 

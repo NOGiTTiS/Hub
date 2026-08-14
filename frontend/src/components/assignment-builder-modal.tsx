@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { toast } from "@/lib/toast"
 import { apiFetch, getMediaUrl } from "@/lib/api"
 import {
   X,
@@ -44,6 +45,7 @@ interface Assignment {
   instructions: string
   max_score: number
   due_date?: string
+  submissions_count?: number
 }
 
 interface AssignmentBuilderModalProps {
@@ -67,7 +69,7 @@ export function AssignmentBuilderModal({
   const [form, setForm] = useState({
     title: "",
     instructions: "",
-    max_score: 100,
+    max_score: 10,
     due_date: "",
   })
 
@@ -75,7 +77,7 @@ export function AssignmentBuilderModal({
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false)
   const [gradingSubmission, setGradingSubmission] = useState<Submission | null>(null)
-  const [gradeForm, setGradeForm] = useState({ score: 100, feedback: "" })
+  const [gradeForm, setGradeForm] = useState({ score: 10, feedback: "" })
   const [isSavingGrade, setIsSavingGrade] = useState(false)
 
   const fetchAssignments = async () => {
@@ -114,7 +116,10 @@ export function AssignmentBuilderModal({
 
   const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.title.trim() || !form.instructions.trim()) return
+    if (!form.title.trim() || !form.instructions.trim()) {
+      toast.error("กรุณากรอกหัวข้อและคำชี้แจงการบ้าน")
+      return
+    }
 
     setIsSaving(true)
     const payload = {
@@ -130,7 +135,10 @@ export function AssignmentBuilderModal({
         body: JSON.stringify(payload),
       })
       if (res.success) {
+        toast.success("บันทึกการแก้ไขการบ้านเรียบร้อยแล้ว")
         fetchAssignments()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการบันทึกการบ้าน")
       }
     } else {
       const res = await apiFetch(`/api/teacher/lessons/${lessonId}/assignments`, {
@@ -138,7 +146,10 @@ export function AssignmentBuilderModal({
         body: JSON.stringify(payload),
       })
       if (res.success) {
+        toast.success("สร้างหัวข้อการบ้านเรียบร้อยแล้ว")
         fetchAssignments()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการสร้างการบ้าน")
       }
     }
     setIsSaving(false)
@@ -150,14 +161,17 @@ export function AssignmentBuilderModal({
       method: "DELETE",
     })
     if (res.success) {
+      toast.success("ลบการบ้านเรียบร้อยแล้ว")
       fetchAssignments()
+    } else {
+      toast.error(res.message || "ไม่สามารถลบการบ้านได้")
     }
   }
 
   const handleOpenGradeModal = (sub: Submission) => {
     setGradingSubmission(sub)
     setGradeForm({
-      score: sub.score !== undefined && sub.score !== null ? sub.score : (activeAssignment?.max_score || 100),
+      score: sub.score !== undefined && sub.score !== null ? sub.score : (activeAssignment?.max_score || 10),
       feedback: sub.feedback || "",
     })
   }
@@ -173,8 +187,11 @@ export function AssignmentBuilderModal({
     })
 
     if (res.success) {
+      toast.success("บันทึกผลการตรวจการบ้านเรียบร้อยแล้ว")
       setGradingSubmission(null)
       if (activeAssignment) fetchSubmissions(activeAssignment.id)
+    } else {
+      toast.error(res.message || "เกิดข้อผิดพลาดในการบันทึกคะแนน")
     }
     setIsSavingGrade(false)
   }

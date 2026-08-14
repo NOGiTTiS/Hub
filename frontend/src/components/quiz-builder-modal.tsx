@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { toast } from "@/lib/toast"
 import { apiFetch } from "@/lib/api"
 import {
   X,
@@ -66,7 +67,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
   const [quizForm, setQuizForm] = useState({
     title: "",
     time_limit_minutes: 15,
-    passing_score: 60,
+    passing_score: 80,
     max_attempts: 0,
   })
 
@@ -76,8 +77,8 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
   const [questionForm, setQuestionForm] = useState({
     question_text: "",
     question_type: "MULTIPLE_CHOICE",
-    options: ["", "", "", ""],
-    correct_answer: "",
+    options: ["ตัวเลือก ก", "ตัวเลือก ข", "ตัวเลือก ค", "ตัวเลือก ง"],
+    correct_answer: "ตัวเลือก ก",
     points: 1,
   })
 
@@ -121,7 +122,10 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
 
   const handleCreateOrUpdateQuiz = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!quizForm.title.trim()) return
+    if (!quizForm.title.trim()) {
+      toast.error("กรุณากรอกชื่อชุดแบบทดสอบ")
+      return
+    }
 
     setIsSaving(true)
     if (activeQuiz) {
@@ -131,7 +135,10 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
         body: JSON.stringify(quizForm),
       })
       if (res.success) {
+        toast.success("บันทึกการตั้งค่าแบบทดสอบเรียบร้อยแล้ว")
         fetchQuizzes()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการบันทึกแบบทดสอบ")
       }
     } else {
       // Create
@@ -140,7 +147,10 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
         body: JSON.stringify(quizForm),
       })
       if (res.success) {
+        toast.success("สร้างชุดแบบทดสอบเรียบร้อยแล้ว")
         fetchQuizzes()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการสร้างแบบทดสอบ")
       }
     }
     setIsSaving(false)
@@ -152,7 +162,10 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
       method: "DELETE",
     })
     if (res.success) {
+      toast.success("ลบชุดแบบทดสอบเรียบร้อยแล้ว")
       fetchQuizzes()
+    } else {
+      toast.error(res.message || "ไม่สามารถลบชุดแบบทดสอบได้")
     }
   }
 
@@ -190,7 +203,10 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
 
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeQuiz || !questionForm.question_text.trim()) return
+    if (!activeQuiz || !questionForm.question_text.trim()) {
+      toast.error("กรุณากรอกโจทย์คำถาม")
+      return
+    }
 
     setIsSaving(true)
     if (editingQuestionId) {
@@ -199,8 +215,11 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
         body: JSON.stringify(questionForm),
       })
       if (res.success) {
+        toast.success("แก้ไขข้อสอบเรียบร้อยแล้ว")
         setShowQuestionModal(false)
         fetchQuizzes()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการแก้ไขข้อสอบ")
       }
     } else {
       const res = await apiFetch(`/api/teacher/quizzes/${activeQuiz.id}/questions`, {
@@ -208,8 +227,11 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
         body: JSON.stringify(questionForm),
       })
       if (res.success) {
+        toast.success("เพิ่มข้อสอบใหม่เรียบร้อยแล้ว")
         setShowQuestionModal(false)
         fetchQuizzes()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการเพิ่มข้อสอบ")
       }
     }
     setIsSaving(false)
@@ -221,7 +243,10 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
       method: "DELETE",
     })
     if (res.success) {
+      toast.success("ลบข้อสอบเรียบร้อยแล้ว")
       fetchQuizzes()
+    } else {
+      toast.error(res.message || "ไม่สามารถลบข้อสอบได้")
     }
   }
 

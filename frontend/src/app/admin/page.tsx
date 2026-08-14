@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
+import { toast } from "@/lib/toast"
 import { apiFetch, API_BASE_URL } from "@/lib/api"
 import { User, UserRole } from "@/lib/auth-context"
 import {
@@ -174,9 +175,11 @@ export default function AdminUsersPage() {
 
     if (!res.success) {
       setFormError(res.message || "เกิดข้อผิดพลาดในการสร้างผู้ใช้")
+      toast.error(res.message || "เกิดข้อผิดพลาดในการสร้างผู้ใช้")
       return
     }
 
+    toast.success("สร้างบัญชีผู้ใช้เรียบร้อยแล้ว")
     setShowAddModal(false)
     resetForm()
     fetchUsers()
@@ -210,9 +213,11 @@ export default function AdminUsersPage() {
 
     if (!res.success) {
       setFormError(res.message || "เกิดข้อผิดพลาดในการแก้ไขผู้ใช้")
+      toast.error(res.message || "เกิดข้อผิดพลาดในการแก้ไขผู้ใช้")
       return
     }
 
+    toast.success("บันทึกการแก้ไขข้อมูลผู้ใช้เรียบร้อยแล้ว")
     setShowEditModal(false)
     setSelectedUser(null)
     resetForm()
@@ -233,10 +238,11 @@ export default function AdminUsersPage() {
     setDeletingId(null)
 
     if (res.success) {
+      toast.success("ลบบัญชีผู้ใช้เรียบร้อยแล้ว")
       fetchUsers()
       fetchStats()
     } else {
-      alert(res.message || "ไม่สามารถลบผู้ใช้ได้")
+      toast.error(res.message || "ไม่สามารถลบผู้ใช้ได้")
     }
   }
 
@@ -244,6 +250,7 @@ export default function AdminUsersPage() {
   const handleImportSubmit = async () => {
     if (!importFile) {
       setImportError("กรุณาเลือกไฟล์ .csv หรือ .xlsx ก่อนกดนำเข้า")
+      toast.error("กรุณาเลือกไฟล์ .csv หรือ .xlsx ก่อนกดนำเข้า")
       return
     }
 
@@ -263,11 +270,13 @@ export default function AdminUsersPage() {
 
     if (!res.success) {
       setImportError(res.message || "เกิดข้อผิดพลาดในการประมวลผลไฟล์")
+      toast.error(res.message || "เกิดข้อผิดพลาดในการประมวลผลไฟล์")
       return
     }
 
     if (res.data) {
       setImportResult(res.data)
+      toast.success(`นำเข้าผู้ใช้สำเร็จ ${res.data.imported} บัญชี`)
       fetchUsers()
       fetchStats()
     }

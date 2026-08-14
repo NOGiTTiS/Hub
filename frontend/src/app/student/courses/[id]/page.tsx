@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "@/lib/toast"
 import { apiFetch } from "@/lib/api"
 import {
   ArrowLeft,
@@ -96,7 +97,7 @@ export default function StudentCoursePlayerPage() {
       setCertData(res.data)
       setShowCertModal(true)
     } else {
-      alert(res.message || "ไม่สามารถดึงข้อมูลใบประกาศนียบัตรได้")
+      toast.error(res.message || "ไม่สามารถดึงข้อมูลใบประกาศนียบัตรได้")
     }
     setIsLoadingCert(false)
   }

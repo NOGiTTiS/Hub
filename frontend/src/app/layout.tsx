@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { AnnouncementBanner } from "@/components/announcement-banner"
 import { MaintenanceGuard } from "@/components/maintenance-guard"
 import { DynamicBranding } from "@/components/dynamic-branding"
+import { AppToaster } from "@/components/toaster"
 
 const prompt = Prompt({
   variable: "--font-prompt",
@@ -41,6 +42,7 @@ export default function RootLayout({
               <AnnouncementBanner />
               {children}
             </MaintenanceGuard>
+            <AppToaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

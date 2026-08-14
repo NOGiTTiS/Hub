@@ -18,6 +18,7 @@
 * **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Lucide React
 * **Typography:** ฟอนต์หลักภาษาไทย **Prompt** (Google Fonts) และฟอนต์ภาษาอังกฤษ/ตัวเลข **Inter**
 * **Design System & Theme:** รองรับ **Dark / Light Mode** สลับโหมดสีอัตโนมัติ/กำหนดเอง พร้อมระบบ **Dynamic Branding & Custom Theme** (ปรับเปลี่ยน Logo, Favicon, Primary Theme Color ได้แบบ Real-time ผ่าน Admin Panel) และชุดสี Brand Token เริ่มต้น (`#5f06c4` / `#2563eb`), Adaptive Surface, รองรับ Responsive ทุกอุปกรณ์ (PC, Tablet, Mobile)
+* **Notification & Toast System:** **Sonner Toast** (`sonner` + `@/lib/toast`) ขับเคลื่อนระบบแจ้งเตือนแบบ Reactive สอดรับกับสถานะ Dark / Light Mode อัตโนมัติ พร้อมระบบตั้งเวลาแสดงผลแยกตามประเภท (Error 5s, Warning 4s, Success/Info 3s) ยกเลิกการใช้ Native Browser `alert()` และ Static Action Banners ทั้งหมดในระบบ เพื่อประสบการณ์ใช้งานที่ลื่นไหลระดับสากล
 * **Role-Based Access Control (RBAC) & Governance:** แยกสิทธิ์การเข้าถึงแบบเด็ดขาด (Strict Role Isolation 100%) พร้อมระบบ **Enforced Maintenance Mode** และ **Student Self-Registration**
   - 👨‍💼 **ADMIN:** เข้าถึงเฉพาะ `/admin` และ `/admin/settings` (ห้ามเข้า `/teacher` และ `/student`)
   - 👩‍🏫 **TEACHER:** เข้าถึงเฉพาะ `/teacher` (ห้ามเข้า `/admin` และ `/student` โดยสามารถพรีวิวบทเรียนผ่าน Preview Modal ภายใน Course Builder)
@@ -281,13 +282,14 @@
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
 - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
 
-### 📌 Phase 5: Admin System Settings, Branding & Governance
+### 📌 Phase 5: Admin System Settings, Branding, Governance & Modern UI
 - [x] Implement System Settings Data Model, Seed Defaults & Batch Update API
 - [x] Build Admin System Settings Dashboard (`/admin/settings`) with 5 Dedicated Tabs (School Profile, Branding, Policy, Announcements, Diagnostics)
 - [x] Implement Dynamic School Branding & Theme Customizer (Logo upload, Favicon, Real-time Theme Colors)
 - [x] Implement Enforced Maintenance Mode (Backend 503 Guard Middleware + Fullscreen Maintenance Screen + Real-time Check)
 - [x] Implement Student Self-Registration (`POST /api/auth/register` + `/register` Portal + Dynamic Policy Control)
 - [x] Implement Real-time System Health & Storage Diagnostics Engine (PostgreSQL, Redis, `./uploads` Breakdown & Go Runtime)
+- [x] Implement **Sonner Toast Notification System** (`sonner` + `AppToaster` + `@/lib/toast`) รองรับ Dark/Light theme แบบ Reactive และกำหนดระยะเวลาแสดงผลแยกตามประเภท (Error 5s, Warning 4s, Success 3s) ทดแทน Native `alert()` ทั้งหมด
 
 ### 📌 Phase 6: Testing, Performance Hardening & Production Deployment
 - [ ] Conduct Load Testing for 150 Concurrent Active Users (Video Streaming & API Benchmark)
@@ -338,4 +340,4 @@ docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 10 ตารางรวม SystemSettings, API Endpoints Matrix ที่ตรงกับ Backend จริง, Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, และระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics)*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 10 ตารางรวม SystemSettings, API Endpoints Matrix ที่ตรงกับ Backend จริง, Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*
