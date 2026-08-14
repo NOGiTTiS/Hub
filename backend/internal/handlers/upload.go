@@ -26,7 +26,7 @@ func NewUploadHandler(cfg *config.Config) *UploadHandler {
 var (
 	allowedVideoExts = map[string]bool{".mp4": true, ".webm": true, ".mov": true, ".mkv": true}
 	allowedDocExts   = map[string]bool{".pdf": true, ".doc": true, ".docx": true, ".ppt": true, ".pptx": true, ".xls": true, ".xlsx": true, ".zip": true}
-	allowedImageExts = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".svg": true, ".gif": true}
+	allowedImageExts = map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".svg": true, ".gif": true, ".ico": true}
 )
 
 const (

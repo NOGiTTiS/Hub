@@ -17,16 +17,17 @@
 ### 1.3 สถาปัตยกรรมทางเทคโนโลยีและการออกแบบ (Tech Stack & Architecture)
 * **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Lucide React
 * **Typography:** ฟอนต์หลักภาษาไทย **Prompt** (Google Fonts) และฟอนต์ภาษาอังกฤษ/ตัวเลข **Inter**
-* **Design System & Theme:** รองรับ **Dark / Light Mode** สลับโหมดสีอัตโนมัติ/กำหนดเอง พร้อมชุดสี Brand Token สีม่วงหลัก (`#5f06c4`), Adaptive Surface, รองรับ Responsive ทุกอุปกรณ์ (PC, Tablet, Mobile)
-* **Role-Based Access Control (RBAC):** แยกสิทธิ์การเข้าถึงแบบเด็ดขาด (Strict Role Isolation 100%)
-  - 👨‍💼 **ADMIN:** เข้าถึงเฉพาะ `/admin` (ห้ามเข้า `/teacher` และ `/student`)
+* **Design System & Theme:** รองรับ **Dark / Light Mode** สลับโหมดสีอัตโนมัติ/กำหนดเอง พร้อมระบบ **Dynamic Branding & Custom Theme** (ปรับเปลี่ยน Logo, Favicon, Primary Theme Color ได้แบบ Real-time ผ่าน Admin Panel) และชุดสี Brand Token เริ่มต้น (`#5f06c4` / `#2563eb`), Adaptive Surface, รองรับ Responsive ทุกอุปกรณ์ (PC, Tablet, Mobile)
+* **Role-Based Access Control (RBAC) & Governance:** แยกสิทธิ์การเข้าถึงแบบเด็ดขาด (Strict Role Isolation 100%) พร้อมระบบ **Enforced Maintenance Mode** และ **Student Self-Registration**
+  - 👨‍💼 **ADMIN:** เข้าถึงเฉพาะ `/admin` และ `/admin/settings` (ห้ามเข้า `/teacher` และ `/student`)
   - 👩‍🏫 **TEACHER:** เข้าถึงเฉพาะ `/teacher` (ห้ามเข้า `/admin` และ `/student` โดยสามารถพรีวิวบทเรียนผ่าน Preview Modal ภายใน Course Builder)
-  - 🧑‍🎓 **STUDENT:** เข้าถึงเฉพาะ `/student` (ห้ามเข้า `/admin` และ `/teacher`)
-* **Frontend Tooling & Package Manager:** **Bun** *(ใช้งาน Bun ทั้งหมดสำหรับ Frontend Dependencies, Dev และ Scripts)*
+  - 🧑‍🎓 **STUDENT:** เข้าถึงเฉพาะ `/student` และ `/register` (ห้ามเข้า `/admin` และ `/teacher`)
+* **Frontend Tooling & Package Manager:** **Bun** *(ใช้งาน Bun ทั้งหมดสำหรับ Frontend Dependencies, Dev และ Scripts โดยโค้ดฝั่ง Frontend ห้ามใส่ Semicolon เด็ดขาด)*
 * **Backend API:** **Go 1.25+** + **Fiber Framework (v2)** + **GORM (ORM)**
 * **Hot Reload & Dev Engine:** **Air (v1.64+)** รองรับ Live Reload ทั้งบน Local Machine และ Docker Development (`.air.toml`, `Dockerfile.dev`, `docker-compose.dev.yml`)
 * **Database & Cache:** **PostgreSQL 17** + **Redis 7**
 * **Media & File Storage:** Local Volume Mount บน Host Machine ผ่าน Docker Mount Path (`/var/tunorth_data/uploads`) พร้อมตัวช่วยแปลง Relative Path (`getMediaUrl()`)
+* **Admin System Settings & Diagnostics:** ควบคุมข้อมูลโรงเรียน, ลายเซ็นผู้อำนวยการบนเกียรติบัตร, แถบประกาศทั่วทั้งระบบ (Banner), สวิตช์ปิดปรับปรุงระบบ (Maintenance Guard), และแดชบอร์ดตรวจสอบสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime
 * **Interactive Code Playground:** Client-Side WebAssembly (Pyodide v0.26.2 สำหรับ Python) + Monaco Code Editor รองรับการแสดงผล Console, Stderr/Stdout capture, และคำสั่ง `input()` แบบ Interactive ผ่าน `pyodide.setStdin`
 * **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมตัวนับเวลาถอยหลัง (Timer), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
 * **Certificate Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมลายเซ็นและตราประทับโรงเรียน รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape) และหน้าตรวจสอบความถูกต้องสาธารณะ (`/verify/[code]`)
@@ -157,18 +158,30 @@
 | `certificate_code` | VARCHAR(100) | UNIQUE, NOT NULL | รหัสรับรอง (เช่น `TUN-2026-XXXX-XXXX`) |
 | `issued_at` | TIMESTAMPTZ | Default NOW() | วันเวลาที่ออกใบประกาศนียบัตร |
 
+#### 10. SystemSettings (ตารางการตั้งค่าระบบและอัตลักษณ์)
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | รหัสอ้างอิงการตั้งค่า |
+| `key` | VARCHAR(100) | UNIQUE, NOT NULL | คีย์ระบุการตั้งค่า (เช่น `school_name_th`, `theme_primary_color`) |
+| `value` | TEXT | NOT NULL | ค่าคอนฟิก (สตริง ข้อความ หรือ JSON) |
+| `description` | TEXT | NULL | คำอธิบายหน้าที่ของคีย์การตั้งค่า |
+| `category` | VARCHAR(50) | NOT NULL DEFAULT 'GENERAL' | หมวดหมู่ (`GENERAL`, `BRANDING`, `POLICY`, `ANNOUNCEMENT`, `MAINTENANCE`) |
+| `updated_at` | TIMESTAMPTZ | Default NOW() | วันเวลาที่แก้ไขล่าสุด |
+
 ---
 
 ## 3. สรุปรายการ API Endpoints (API Routes Matrix)
 
-### 3.1 การยืนยันตัวตนและการจัดการผู้ใช้ (Auth & Admin API)
+### 3.1 การยืนยันตัวตน การตั้งค่าระบบ และการจัดการผู้ใช้ (Auth & Admin API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/login` | Public | เข้าสู่ระบบด้วย Email/Password |
+| `POST` | `/api/auth/register` | Public | ลงทะเบียนสมัครสมาชิกนักเรียนด้วยตนเอง (Student Self-Registration) |
 | `POST` | `/api/auth/logout` | Authenticated | ออกจากระบบ เคลียร์ JWT Cookie |
 | `POST` | `/api/auth/refresh` | Authenticated | รีเฟรช Access Token อัตโนมัติ |
 | `GET` | `/api/auth/me` | Authenticated | ดึงข้อมูลผู้ใช้งานปัจจุบัน |
-| `POST` | `/api/upload` | Authenticated | อัปโหลดไฟล์วิดีโอ (500MB), PDF (100MB), ภาพ (20MB) |
+| `GET` | `/api/settings/public` | Public | ดึงข้อมูลคอนฟิกสาธารณะ (ชื่อโรงเรียน, โลโก้, Favicon, ธีมสี, แถบประกาศ, สถานะ Maintenance) |
+| `POST` | `/api/upload` | Authenticated | อัปโหลดไฟล์วิดีโอ (500MB), PDF (100MB), ภาพและ Favicon (20MB) |
 | `GET` | `/api/admin/stats/users`| ADMIN | สรุปสถิติจำนวนผู้ใช้แยกตาม Role และระดับชั้น |
 | `GET` | `/api/admin/users` | ADMIN | ค้นหา กรอง และแสดงรายชื่อผู้ใช้ทั้งหมด |
 | `POST` | `/api/admin/users` | ADMIN | สร้างบัญชีผู้ใช้งานใหม่รายบุคคล |
@@ -176,6 +189,9 @@
 | `DELETE`| `/api/admin/users/:id` | ADMIN | ลบบัญชีผู้ใช้งาน |
 | `POST` | `/api/admin/users/import`| ADMIN | นำเข้าข้อมูลผู้ใช้แบบ Batch (CSV / Excel) |
 | `GET` | `/api/admin/users/template`| ADMIN | ดาวน์โหลดไฟล์แม่แบบ CSV/Excel |
+| `GET` | `/api/admin/settings` | ADMIN | ดึงข้อมูลการตั้งค่าระบบทั้งหมดแยกตามหมวดหมู่ |
+| `PUT` | `/api/admin/settings` | ADMIN | บันทึกแก้ไขการตั้งค่าระบบแบบ Batch Key-Value |
+| `GET` | `/api/admin/settings/system-health` | ADMIN | รายงานผลการตรวจสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime |
 
 ### 3.2 การจัดการรายวิชาและบทเรียน (Teacher Course Management API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
@@ -265,7 +281,15 @@
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
 - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
 
-### 📌 Phase 5: Testing, Performance Hardening & Production Deployment
+### 📌 Phase 5: Admin System Settings, Branding & Governance
+- [x] Implement System Settings Data Model, Seed Defaults & Batch Update API
+- [x] Build Admin System Settings Dashboard (`/admin/settings`) with 5 Dedicated Tabs (School Profile, Branding, Policy, Announcements, Diagnostics)
+- [x] Implement Dynamic School Branding & Theme Customizer (Logo upload, Favicon, Real-time Theme Colors)
+- [x] Implement Enforced Maintenance Mode (Backend 503 Guard Middleware + Fullscreen Maintenance Screen + Real-time Check)
+- [x] Implement Student Self-Registration (`POST /api/auth/register` + `/register` Portal + Dynamic Policy Control)
+- [x] Implement Real-time System Health & Storage Diagnostics Engine (PostgreSQL, Redis, `./uploads` Breakdown & Go Runtime)
+
+### 📌 Phase 6: Testing, Performance Hardening & Production Deployment
 - [ ] Conduct Load Testing for 150 Concurrent Active Users (Video Streaming & API Benchmark)
 - [ ] Configure Nginx Reverse Proxy with Rate Limiting, Static Asset Caching, and SSL Certificates
 - [ ] Implement Automated Database Backup Shell Script (`pg_dump` Cron Job)
@@ -314,4 +338,4 @@ docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-4 สมบูรณ์: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบทุกตาราง, API Endpoints Matrix ที่ตรงกับ Backend จริง, Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), และระบบออกเกียรติบัตรทางการ*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 10 ตารางรวม SystemSettings, API Endpoints Matrix ที่ตรงกับ Backend จริง, Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, และระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics)*

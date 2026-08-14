@@ -31,6 +31,7 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 
 	// API Group
 	api := app.Group("/api")
+	api.Use(middleware.CheckMaintenanceMode(db, cfg))
 
 	// Health check
 	healthHandler := handlers.NewHealthHandler(db)
@@ -45,6 +46,7 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	authHandler := handlers.NewAuthHandler(cfg, db)
 	authGroup := api.Group("/auth")
 	authGroup.Post("/login", authHandler.Login)
+	authGroup.Post("/register", authHandler.Register)
 	authGroup.Post("/logout", authHandler.Logout)
 	authGroup.Post("/refresh", authHandler.RefreshToken)
 	authGroup.Get("/me", middleware.RequireAuth(cfg), authHandler.Me)
@@ -52,6 +54,10 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	// File Upload Route (Authenticated users)
 	uploadHandler := handlers.NewUploadHandler(cfg)
 	api.Post("/upload", middleware.RequireAuth(cfg), uploadHandler.UploadFile)
+
+	// Settings Handler
+	settingsHandler := handlers.NewSettingsHandler(db, cfg)
+	api.Get("/settings/public", settingsHandler.GetPublicSettings)
 
 	// Admin Routes
 	adminUserHandler := handlers.NewAdminUserHandler(db)
@@ -64,6 +70,9 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	adminGroup.Delete("/users/:id", adminUserHandler.DeleteUser)
 	adminGroup.Post("/users/import", adminUserHandler.BatchImport)
 	adminGroup.Get("/users/template", adminUserHandler.DownloadTemplate)
+	adminGroup.Get("/settings", settingsHandler.GetAdminSettings)
+	adminGroup.Put("/settings", settingsHandler.UpdateAdminSettings)
+	adminGroup.Get("/settings/system-health", settingsHandler.GetSystemHealth)
 
 	// Teacher Routes (Course, Content, Assignments, Quizzes Management)
 	courseHandler := handlers.NewCourseHandler(db)

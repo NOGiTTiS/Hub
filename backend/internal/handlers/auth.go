@@ -30,6 +30,142 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type RegisterRequest struct {
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	GradeLevel string `json:"grade_level"`
+	Classroom  string `json:"classroom"`
+}
+
+// Register allows a student to register an account if allowed by policy
+func (h *AuthHandler) Register(c *fiber.Ctx) error {
+	// 1. Check system policy for self registration
+	var regSetting models.SystemSetting
+	if err := h.db.DB.Where("key = ?", "allow_student_registration").First(&regSetting).Error; err != nil || regSetting.Value != "true" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "ระบบปิดรับการสมัครสมาชิกด้วยตนเองในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ",
+		})
+	}
+
+	var req RegisterRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รูปแบบข้อมูลไม่ถูกต้อง",
+		})
+	}
+
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	req.FirstName = strings.TrimSpace(req.FirstName)
+	req.LastName = strings.TrimSpace(req.LastName)
+	req.GradeLevel = strings.TrimSpace(req.GradeLevel)
+	req.Classroom = strings.TrimSpace(req.Classroom)
+
+	if req.Email == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "กรุณากรอกข้อมูลอีเมล รหัสผ่าน ชื่อ และนามสกุลให้ครบถ้วน",
+		})
+	}
+
+	if len(req.Password) < 6 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร",
+		})
+	}
+
+	// 2. Check duplicate email
+	var count int64
+	h.db.DB.Model(&models.User{}).Where("LOWER(email) = ?", req.Email).Count(&count)
+	if count > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"success": false,
+			"message": "อีเมลนี้มีอยู่ในระบบแล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น",
+		})
+	}
+
+	// 3. Hash password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "เกิดข้อผิดพลาดในการเข้ารหัสผ่าน",
+		})
+	}
+
+	// 4. Create new user with RoleStudent
+	var gradeLevelPtr *string
+	if req.GradeLevel != "" {
+		gradeLevelPtr = &req.GradeLevel
+	}
+	var classroomPtr *string
+	if req.Classroom != "" {
+		classroomPtr = &req.Classroom
+	}
+
+	user := models.User{
+		Email:        req.Email,
+		PasswordHash: hashedPassword,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Role:         models.RoleStudent,
+		GradeLevel:   gradeLevelPtr,
+		Classroom:    classroomPtr,
+	}
+
+	if err := h.db.DB.Create(&user).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถสร้างบัญชีผู้ใช้งานได้ กรุณาลองใหม่อีกครั้ง",
+		})
+	}
+
+	// 5. Generate token pair & set cookie for instant login
+	tokens, err := utils.GenerateTokenPair(&user, h.cfg.JWTSecret)
+	if err == nil {
+		isProd := h.cfg.AppEnv == "production"
+		c.Cookie(&fiber.Cookie{
+			Name:     "access_token",
+			Value:    tokens.AccessToken,
+			Expires:  time.Now().Add(2 * time.Hour),
+			HTTPOnly: true,
+			Secure:   isProd,
+			SameSite: "Lax",
+			Path:     "/",
+		})
+		c.Cookie(&fiber.Cookie{
+			Name:     "refresh_token",
+			Value:    tokens.RefreshToken,
+			Expires:  time.Now().Add(7 * 24 * time.Hour),
+			HTTPOnly: true,
+			Secure:   isProd,
+			SameSite: "Lax",
+			Path:     "/",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"message": "สมัครสมาชิกนักเรียนสำเร็จ ยินดีต้อนรับเข้าสู่ระบบ",
+		"data": fiber.Map{
+			"user": fiber.Map{
+				"id":          user.ID,
+				"email":       user.Email,
+				"first_name":  user.FirstName,
+				"last_name":   user.LastName,
+				"role":        user.Role,
+				"grade_level": user.GradeLevel,
+				"classroom":   user.Classroom,
+				"created_at":  user.CreatedAt,
+			},
+		},
+	})
+}
+
 // Login authenticates a user and returns JWT tokens & sets cookies
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req LoginRequest

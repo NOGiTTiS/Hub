@@ -39,26 +39,27 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get("redirect")
 
-  const { user, login, isAuthenticated } = useAuth()
+  const { user, login, logout, isAuthenticated } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
-  const handleRedirect = (currentUser: User) => {
+  const handleRedirect = React.useCallback((currentUser: User) => {
     if (redirectParam && isAuthorizedForPath(currentUser.role, redirectParam)) {
       router.push(redirectParam)
     } else {
       router.push(getRoleDefaultPath(currentUser.role))
     }
-  }
+  }, [redirectParam, router])
 
-  // Redirect if already logged in
+  // Redirect if admin
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user?.role === "ADMIN") {
       handleRedirect(user)
     }
-  }, [isAuthenticated, user])
+  }, [isAuthenticated, user, handleRedirect])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,6 +103,28 @@ function LoginForm() {
           กรอกอีเมลโรงเรียนและรหัสผ่านเพื่อเข้าใช้งาน
         </p>
       </div>
+
+      {isAuthenticated && user && user.role !== "ADMIN" && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/80 text-amber-900 dark:text-amber-200 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">เข้าสู่ระบบอยู่: {user.first_name} {user.last_name} ({user.role})</span>
+          </div>
+          <p className="text-[11px] text-amber-700 dark:text-amber-300">
+            ต้องการเข้าใช้งานด้วยบัญชีผู้ดูแลระบบ (Admin) หรือไม่?
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              setLoggingOut(true)
+              await logout()
+            }}
+            disabled={loggingOut}
+            className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-900 hover:bg-amber-100 dark:hover:bg-slate-800 text-amber-900 dark:text-amber-200 font-bold border border-amber-300 dark:border-amber-800 transition-all cursor-pointer text-center"
+          >
+            {loggingOut ? "กำลังออกจากระบบ..." : "ออกจากระบบเพื่อเข้าสู่ระบบใหม่"}
+          </button>
+        </div>
+      )}
 
       {/* ERROR ALERT */}
       {error && (
@@ -205,6 +228,17 @@ function LoginForm() {
           </button>
         </div>
       </div>
+
+      {/* SIGN UP LINK */}
+      <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-500">
+        ยังไม่มีบัญชีนักเรียน?{" "}
+        <Link
+          href="/register"
+          className="text-brand-600 dark:text-brand-400 font-bold hover:underline"
+        >
+          สมัครสมาชิกที่นี่
+        </Link>
+      </div>
     </div>
   )
 }
@@ -248,7 +282,7 @@ export default function LoginPage() {
 
       {/* FOOTER */}
       <footer className="py-4 text-center text-xs text-slate-500 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800/60">
-        TUNorth-Hub &copy; 2026 โรงเรียนเตรียมอุดมศึกษาภาคเหนือ · LMS EdTech Platform
+        TUNorth-Hub © 2026 โรงเรียนเตรียมอุดมศึกษาภาคเหนือ · LMS EdTech Platform
       </footer>
     </div>
   )

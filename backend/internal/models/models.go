@@ -254,3 +254,13 @@ func (c *Certificate) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 	return
 }
+
+// SystemSetting represents the system_settings table for dynamic platform configuration
+type SystemSetting struct {
+	Key         string    `gorm:"type:varchar(100);primaryKey" json:"key"`
+	Value       string    `gorm:"type:text;not null" json:"value"`
+	Description string    `gorm:"type:varchar(255)" json:"description"`
+	Category    string    `gorm:"type:varchar(50);not null;index" json:"category"`
+	UpdatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+

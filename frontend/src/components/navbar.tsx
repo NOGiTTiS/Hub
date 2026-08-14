@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { apiFetch, getMediaUrl } from "@/lib/api"
 import { ThemeToggle } from "./theme-toggle"
 import {
   GraduationCap,
@@ -14,12 +15,36 @@ import {
   X,
   ShieldCheck,
   UserCheck,
+  Settings,
 } from "lucide-react"
 
 export function Navbar() {
   const { user, logout } = useAuth()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [branding, setBranding] = useState<{
+    site_logo_url?: string
+    platform_title?: string
+    platform_subtitle?: string
+  } | null>(null)
+
+  React.useEffect(() => {
+    let ignore = false
+    async function loadBranding() {
+      try {
+        const res = await apiFetch("/api/settings/public")
+        if (!ignore && res.success && res.data) {
+          setBranding(res.data)
+        }
+      } catch {
+        // Fallback to default
+      }
+    }
+    loadBranding()
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const getRoleBadge = (role?: string) => {
     switch (role) {
@@ -58,6 +83,7 @@ export function Navbar() {
     ...(user?.role === "ADMIN"
       ? [
           { href: "/admin", label: "จัดการผู้ใช้งาน (User Management)", icon: Users },
+          { href: "/admin/settings", label: "ตั้งค่าระบบ (System Settings)", icon: Settings },
         ]
       : []),
     ...(user?.role === "TEACHER"
@@ -78,15 +104,26 @@ export function Navbar() {
         {/* LOGO */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-brand-500 group-hover:bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold shadow-md shadow-brand-500/30 transition-all">
-              <GraduationCap className="w-5 h-5" />
-            </div>
+            {branding?.site_logo_url ? (
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getMediaUrl(branding.site_logo_url)}
+                  alt="School Logo"
+                  className="w-full h-full object-contain p-1"
+                />
+              </div>
+            ) : (
+              <div className="w-10 h-10 bg-brand-500 group-hover:bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold shadow-md shadow-brand-500/30 transition-all">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+            )}
             <div>
               <span className="font-bold text-slate-900 dark:text-white text-base leading-tight block">
-                TUNorth-Hub
+                {branding?.platform_title || "TUNorth-Hub"}
               </span>
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-en block">
-                High School LMS
+                {branding?.platform_subtitle || "High School LMS"}
               </span>
             </div>
           </Link>

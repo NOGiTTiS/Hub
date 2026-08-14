@@ -3,6 +3,9 @@ import { Prompt, Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
+import { AnnouncementBanner } from "@/components/announcement-banner"
+import { MaintenanceGuard } from "@/components/maintenance-guard"
+import { DynamicBranding } from "@/components/dynamic-branding"
 
 const prompt = Prompt({
   variable: "--font-prompt",
@@ -33,7 +36,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans selection:bg-brand-500 selection:text-white">
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <DynamicBranding />
+            <MaintenanceGuard>
+              <AnnouncementBanner />
+              {children}
+            </MaintenanceGuard>
           </AuthProvider>
         </ThemeProvider>
       </body>
