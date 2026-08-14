@@ -1,19 +1,14 @@
 "use client"
 
-import React, { useRef } from "react"
+import React, { useRef, useState, useEffect } from "react"
 import {
   X,
   Printer,
-  Download,
   Award,
   ShieldCheck,
-  CheckCircle2,
-  Calendar,
-  User,
   GraduationCap,
-  Sparkles,
-  ExternalLink,
 } from "lucide-react"
+import { apiFetch, getMediaUrl } from "@/lib/api"
 
 export interface CertificateData {
   id: string
@@ -34,6 +29,16 @@ export interface CertificateData {
   }
 }
 
+interface PublicCertSettings {
+  school_name_th?: string
+  school_name_en?: string
+  platform_title?: string
+  platform_subtitle?: string
+  director_name?: string
+  director_position?: string
+  site_logo_url?: string
+}
+
 interface CertificateModalProps {
   cert: CertificateData
   onClose: () => void
@@ -41,6 +46,25 @@ interface CertificateModalProps {
 
 export function CertificateModal({ cert, onClose }: CertificateModalProps) {
   const certRef = useRef<HTMLDivElement>(null)
+  const [settings, setSettings] = useState<PublicCertSettings | null>(null)
+
+  useEffect(() => {
+    let ignore = false
+    const fetchPublicSettings = async () => {
+      try {
+        const res = await apiFetch<PublicCertSettings>("/api/settings/public")
+        if (!ignore && res.success && res.data) {
+          setSettings(res.data)
+        }
+      } catch {
+        // Fallback to default
+      }
+    }
+    fetchPublicSettings()
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const handlePrint = () => {
     window.print()
@@ -51,6 +75,11 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
     month: "long",
     day: "numeric",
   })
+
+  // Format School Subtitle
+  const schoolSubtitle = settings?.school_name_en
+    ? `${settings.school_name_en.toUpperCase()}${settings.platform_title ? ` · ${settings.platform_title.toUpperCase()}` : ""}`
+    : "TRIAM UDOM SUKSA SCHOOL OF THE NORTH · LMS EDTECH"
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
@@ -70,6 +99,8 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
             max-height: 100% !important;
             overflow: hidden !important;
             background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
@@ -101,6 +132,8 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             break-after: avoid !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
@@ -156,14 +189,25 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
 
           {/* SCHOOL LOGO & HEADER */}
           <div className="space-y-2">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-700 text-white shadow-md mx-auto mb-1">
-              <GraduationCap className="w-8 h-8" />
-            </div>
+            {settings?.site_logo_url ? (
+              <div className="w-16 h-16 max-h-16 max-w-16 mx-auto mb-1 flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getMediaUrl(settings.site_logo_url)}
+                  alt={settings.school_name_th || "School Logo"}
+                  className="max-h-16 max-w-16 object-contain"
+                />
+              </div>
+            ) : (
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-700 text-white shadow-md mx-auto mb-1">
+                <GraduationCap className="w-8 h-8" />
+              </div>
+            )}
             <h2 className="text-xs sm:text-sm font-black tracking-widest text-brand-900 uppercase">
-              โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ
+              {settings?.school_name_th || "โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ"}
             </h2>
             <p className="text-[11px] font-semibold text-slate-500 tracking-wider">
-              TRIAM UDOM SUKSA SCHOOL OF THE NORTH · LMS EDTECH
+              {schoolSubtitle}
             </p>
             <div className="w-24 h-0.5 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto mt-2" />
           </div>
@@ -218,11 +262,13 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
             <div className="space-y-1 text-center">
               <div className="h-10 flex items-end justify-center">
                 <span className="font-serif italic font-bold text-brand-900 text-sm">
-                  TUNorth Academic Board
+                  {settings?.director_name || "TUNorth Academic Board"}
                 </span>
               </div>
               <div className="w-36 h-px bg-slate-400 mx-auto" />
-              <p className="text-[10px] text-slate-500 font-semibold">ผู้อำนวยการฝ่ายวิชาการ</p>
+              <p className="text-[10px] text-slate-500 font-semibold">
+                {settings?.director_position || "ผู้อำนวยการโรงเรียน"}
+              </p>
             </div>
           </div>
 

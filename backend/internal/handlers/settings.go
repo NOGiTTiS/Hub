@@ -38,6 +38,8 @@ func (h *SettingsHandler) GetPublicSettings(c *fiber.Ctx) error {
 		"school_name_en",
 		"platform_title",
 		"platform_subtitle",
+		"director_name",
+		"director_position",
 		"academic_year",
 		"academic_semester",
 		"contact_email",

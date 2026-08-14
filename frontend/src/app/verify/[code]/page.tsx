@@ -3,17 +3,13 @@
 import React, { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, getMediaUrl } from "@/lib/api"
 import {
   ShieldCheck,
   AlertTriangle,
   GraduationCap,
-  Calendar,
-  User,
-  BookOpen,
   ArrowLeft,
   Loader2,
-  CheckCircle2,
 } from "lucide-react"
 
 interface VerifyResult {
@@ -27,13 +23,41 @@ interface VerifyResult {
   teacher_name: string
 }
 
+interface PublicSettings {
+  school_name_th?: string
+  school_name_en?: string
+  platform_title?: string
+  site_logo_url?: string
+}
+
 export default function CertificateVerificationPage() {
   const params = useParams()
   const code = params?.code as string
 
   const [result, setResult] = useState<VerifyResult | null>(null)
+  const [settings, setSettings] = useState<PublicSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let ignore = false
+
+    const fetchSettings = async () => {
+      try {
+        const res = await apiFetch<PublicSettings>("/api/settings/public")
+        if (!ignore && res.success && res.data) {
+          setSettings(res.data)
+        }
+      } catch {
+        // Fallback to default
+      }
+    }
+
+    fetchSettings()
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!code) return
@@ -53,19 +77,33 @@ export default function CertificateVerificationPage() {
     verifyCert()
   }, [code])
 
+  const schoolNameTh = settings?.school_name_th || "โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ"
+  const platformTitle = settings?.platform_title || "TUNorth-Hub"
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
         {/* LOGO */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-brand-600/20 border border-brand-500/30 text-brand-400 flex items-center justify-center mx-auto shadow-inner">
-            <GraduationCap className="w-7 h-7" />
-          </div>
+          {settings?.site_logo_url ? (
+            <div className="w-14 h-14 mx-auto flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getMediaUrl(settings.site_logo_url)}
+                alt={schoolNameTh}
+                className="max-h-14 max-w-14 object-contain"
+              />
+            </div>
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-brand-600/20 border border-brand-500/30 text-brand-400 flex items-center justify-center mx-auto shadow-inner">
+              <GraduationCap className="w-7 h-7" />
+            </div>
+          )}
           <h1 className="text-lg font-bold text-white tracking-wide">
             ระบบตรวจสอบความถูกต้องของใบประกาศนียบัตร
           </h1>
           <p className="text-xs text-slate-400">
-            โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub)
+            {schoolNameTh} ({platformTitle})
           </p>
         </div>
 
@@ -162,7 +200,7 @@ export default function CertificateVerificationPage() {
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> กลับสู่หน้าหลัก TUNorth-Hub
+            <ArrowLeft className="w-3.5 h-3.5" /> กลับสู่หน้าหลัก {platformTitle}
           </Link>
         </div>
       </div>
