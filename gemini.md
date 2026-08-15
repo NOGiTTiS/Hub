@@ -131,6 +131,7 @@ D:\Hub
 - [x] **Phase 4: Assessment, Code Playground & Certificate System** *(Completed & Verified)*
   - [x] Build Assignment Creation, Submission & Grading System
   - [x] Build Interactive Quiz Engine (Question Builder, Timer, Auto-Grading Logic, Attempts history, and Max Attempts Quota Limit)
+  - [x] Implement Quiz & Question Import Engine (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder)
   - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
   - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
 - [x] **Phase 5: Admin System Settings, Branding, Governance & Landing Page CMS** *(Completed & Verified)*

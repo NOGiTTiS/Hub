@@ -197,12 +197,12 @@ export function AssignmentBuilderModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-5xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <FileCheck2 className="w-5 h-5" />
             </div>
             <div>
@@ -218,7 +218,7 @@ export function AssignmentBuilderModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -231,7 +231,7 @@ export function AssignmentBuilderModal({
           </div>
         ) : !activeAssignment ? (
           /* CREATE FIRST ASSIGNMENT */
-          <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-4">
             <FileCheck2 className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
             <h4 className="font-bold text-slate-900 dark:text-white">
               บทเรียนนี้ยังไม่มีการมอบหมายการบ้าน
@@ -269,7 +269,7 @@ export function AssignmentBuilderModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     คะแนนเต็ม
@@ -309,12 +309,12 @@ export function AssignmentBuilderModal({
           </div>
         ) : (
           /* ASSIGNMENT TABS & CONTENT */
-          <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
-            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex-1 min-h-0 flex flex-col space-y-4 overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setActiveTab("edit")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                   activeTab === "edit"
                     ? "bg-indigo-600 text-white shadow"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -329,19 +329,19 @@ export function AssignmentBuilderModal({
                   setActiveTab("submissions")
                   if (activeAssignment) fetchSubmissions(activeAssignment.id)
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                   activeTab === "submissions"
                     ? "bg-indigo-600 text-white shadow"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
-                รายการส่งงานของนักเรียน
+                รายการส่งงานของนักเรียน ({submissions.length})
               </button>
 
               <button
                 type="button"
                 onClick={() => handleDeleteAssignment(activeAssignment.id)}
-                className="ml-auto text-xs font-bold text-red-500 hover:text-red-700 p-2 rounded-lg"
+                className="ml-auto text-xs font-bold text-red-500 hover:text-red-700 p-2 rounded-lg shrink-0"
                 title="ลบการบ้านนี้"
               >
                 <Trash2 className="w-4 h-4" />
@@ -350,77 +350,79 @@ export function AssignmentBuilderModal({
 
             {/* TAB 1: EDIT FORM */}
             {activeTab === "edit" && (
-              <form onSubmit={handleSaveAssignment} className="space-y-4 overflow-y-auto pr-1">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    หัวข้อการบ้าน <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    คำสั่งและรายละเอียดการบ้าน <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    rows={5}
-                    required
-                    value={form.instructions}
-                    onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                <form onSubmit={handleSaveAssignment} className="space-y-4 max-w-2xl pb-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      คะแนนเต็ม
+                      หัวข้อการบ้าน <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="number"
-                      min={1}
-                      value={form.max_score}
-                      onChange={(e) =>
-                        setForm({ ...form, max_score: parseInt(e.target.value) || 100 })
-                      }
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                      type="text"
+                      required
+                      value={form.title}
+                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      กำหนดส่ง (Due Date)
+                      คำสั่งและรายละเอียดการบ้าน <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      value={form.due_date}
-                      onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                    <textarea
+                      rows={5}
+                      required
+                      value={form.instructions}
+                      onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
                     />
                   </div>
-                </div>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow transition"
-                  >
-                    {isSaving ? "กำลังบันทึก..." : "บันทึกการแก้ไขการบ้าน"}
-                  </button>
-                </div>
-              </form>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        คะแนนเต็ม
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={form.max_score}
+                        onChange={(e) =>
+                          setForm({ ...form, max_score: parseInt(e.target.value) || 100 })
+                        }
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        กำหนดส่ง (Due Date)
+                      </label>
+                      <input
+                        type="date"
+                        value={form.due_date}
+                        onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow transition"
+                    >
+                      {isSaving ? "กำลังบันทึก..." : "บันทึกการแก้ไขการบ้าน"}
+                    </button>
+                  </div>
+                </form>
+              </div>
             )}
 
             {/* TAB 2: SUBMISSIONS LIST */}
             {activeTab === "submissions" && (
-              <div className="flex-1 overflow-y-auto space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
                 {isLoadingSubmissions ? (
                   <div className="py-12 text-center text-slate-400 text-xs">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-500" />
@@ -431,8 +433,8 @@ export function AssignmentBuilderModal({
                     ยังไม่มีนักเรียนส่งการบ้านชิ้นนี้
                   </p>
                 ) : (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-                    <table className="w-full text-xs text-left">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
+                    <table className="w-full text-xs text-left min-w-[600px]">
                       <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                         <tr>
                           <th className="p-3">นักเรียน</th>
@@ -446,10 +448,10 @@ export function AssignmentBuilderModal({
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {submissions.map((sub) => (
                           <tr key={sub.id} className="hover:bg-slate-50 dark:hover:bg-slate-950">
-                            <td className="p-3 font-bold text-slate-900 dark:text-white">
+                            <td className="p-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
                               {sub.student?.first_name} {sub.student?.last_name}
                             </td>
-                            <td className="p-3 text-slate-500">
+                            <td className="p-3 text-slate-500 whitespace-nowrap">
                               {sub.student?.grade_level}/{sub.student?.classroom || "-"}
                             </td>
                             <td className="p-3 max-w-xs">
@@ -469,10 +471,10 @@ export function AssignmentBuilderModal({
                                 </a>
                               )}
                             </td>
-                            <td className="p-3 font-bold text-center text-slate-900 dark:text-white">
+                            <td className="p-3 font-bold text-center text-slate-900 dark:text-white whitespace-nowrap">
                               {sub.score !== undefined && sub.score !== null ? `${sub.score}/${activeAssignment.max_score}` : "-"}
                             </td>
-                            <td className="p-3 text-center">
+                            <td className="p-3 text-center whitespace-nowrap">
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                   sub.status === "GRADED"
@@ -483,11 +485,11 @@ export function AssignmentBuilderModal({
                                 {sub.status === "GRADED" ? "ตรวจแล้ว" : "ยังไม่ตรวจ"}
                               </span>
                             </td>
-                            <td className="p-3 text-right">
+                            <td className="p-3 text-right whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => handleOpenGradeModal(sub)}
-                                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shadow"
+                                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] shadow transition"
                               >
                                 {sub.status === "GRADED" ? "แก้ไขคะแนน" : "ตรวจและให้คะแนน"}
                               </button>
@@ -505,88 +507,92 @@ export function AssignmentBuilderModal({
 
         {/* GRADING MODAL */}
         {gradingSubmission && (
-          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-              <div className="flex items-center justify-between">
+          <div className="fixed inset-0 z-60 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                   ตรวจการบ้าน: {gradingSubmission.student?.first_name} {gradingSubmission.student?.last_name}
                 </h4>
                 <button
                   type="button"
                   onClick={() => setGradingSubmission(null)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* STUDENT WORK PREVIEW */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-2">
-                {gradingSubmission.submitted_text && (
-                  <div>
-                    <span className="font-bold text-slate-500 block text-[10px]">ข้อความคำตอบ:</span>
-                    <p className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-                      {gradingSubmission.submitted_text}
-                    </p>
+              <form onSubmit={handleSaveGrade} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-4 pr-1">
+                  {/* STUDENT WORK PREVIEW */}
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+                    {gradingSubmission.submitted_text && (
+                      <div>
+                        <span className="font-bold text-slate-500 block text-[10px] uppercase tracking-wider mb-1">
+                          ข้อความคำตอบที่ส่ง:
+                        </span>
+                        <p className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                          {gradingSubmission.submitted_text}
+                        </p>
+                      </div>
+                    )}
+                    {gradingSubmission.file_url && (
+                      <div>
+                        <a
+                          href={getMediaUrl(gradingSubmission.file_url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-400 font-bold hover:underline"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> เปิดดูไฟล์แนบที่นักเรียนส่ง
+                        </a>
+                      </div>
+                    )}
                   </div>
-                )}
-                {gradingSubmission.file_url && (
-                  <div>
-                    <a
-                      href={getMediaUrl(gradingSubmission.file_url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" /> ดูไฟล์แนบที่นักเรียนส่ง
-                    </a>
-                  </div>
-                )}
-              </div>
 
-              <form onSubmit={handleSaveGrade} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    คะแนนที่ได้ (เต็ม {activeAssignment?.max_score || 100})
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={activeAssignment?.max_score || 100}
-                    required
-                    value={gradeForm.score}
-                    onChange={(e) =>
-                      setGradeForm({ ...gradeForm, score: parseInt(e.target.value) || 0 })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-bold"
-                  />
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      คะแนนที่ได้ (เต็ม {activeAssignment?.max_score || 100})
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={activeAssignment?.max_score || 100}
+                      required
+                      value={gradeForm.score}
+                      onChange={(e) =>
+                        setGradeForm({ ...gradeForm, score: parseInt(e.target.value) || 0 })
+                      }
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      คำติชมและข้อเสนอแนะ (Feedback)
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="พิมพ์คำแนะนำ ข้อดี หรือสิ่งที่ควรปรับปรุงแก่นักเรียน..."
+                      value={gradeForm.feedback}
+                      onChange={(e) => setGradeForm({ ...gradeForm, feedback: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    คำติชมและข้อเสนอแนะ (Feedback)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="พิมพ์คำแนะนำ ข้อดี หรือสิ่งที่ควรปรับปรุงแก่นักเรียน..."
-                    value={gradeForm.feedback}
-                    onChange={(e) => setGradeForm({ ...gradeForm, feedback: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
                   <button
                     type="button"
                     onClick={() => setGradingSubmission(null)}
-                    className="px-4 py-2 rounded-xl text-xs text-slate-600 dark:text-slate-400"
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     ยกเลิก
                   </button>
                   <button
                     type="submit"
                     disabled={isSavingGrade}
-                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow"
+                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow transition"
                   >
                     {isSavingGrade ? "กำลังบันทึก..." : "บันทึกผลการตรวจ"}
                   </button>

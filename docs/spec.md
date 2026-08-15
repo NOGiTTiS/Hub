@@ -7,7 +7,7 @@
 ## 1. ภาพรวมระบบ (System Overview)
 
 ### 1.1 วัตถุประสงค์และวิสัยทัศน์ (Vision & Objective)
-**TUNorth-Hub** เป็นแพลตฟอร์มการจัดการเรียนรู้ดิจิทัล (LMS EdTech) ที่ออกแบบมาเพื่อ **โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ** โดยเฉพาะ เน้นกลุ่มเป้าหมายนักเรียนมัธยมศึกษาตอนปลาย (~2,000 คน) และคณะครูผู้สอน รองรับการเรียนรู้แบบ On-Demand, การประเมินผลออนไลน์, การจัดการไฟล์วิดีโอ/สไลด์การสอน, การพรีวิวบทเรียนสำหรับครูผู้สอน, **Interactive Code Playground** สำหรับฝึกเขียนโค้ด Python ในเบราว์เซอร์, ระบบส่งและตรวจการบ้าน, ระบบแบบทดสอบออนไลน์พร้อมจับเวลา ตรวจคะแนนอัตโนมัติ และกำหนดจำกัดจำนวนครั้งการทำแบบทดสอบ (Quiz Attempt Limits), **ระบบออกใบประกาศนียบัตร (Certificate of Completion)** เมื่อเรียนจบ 100% พร้อมหน้าระบบตรวจสอบความถูกต้องของใบรับรองแบบสาธารณะ, **ระบบจัดการหน้าแรกแบบไดนามิก (Landing Page CMS)** ที่ผู้ดูแลระบบสามารถปรับแต่ง Hero Banner, แถบสถิติ, การ์ดจุดเด่น, คอร์สแนะนำ, ขั้นตอนการเรียน, FAQ Accordion และส่วนท้ายเว็บได้แบบ Real-time ตลอดจน **ระบบโปรไฟล์ผู้ใช้งาน (User Profile System)** สำหรับจัดการข้อมูลส่วนตัว อัปโหลดรูปภาพ Avatar สรุปสถิติกิจกรรมตามบทบาท (Role-Adaptive Activity Stats) และระบบเปลี่ยนรหัสผ่านที่ปลอดภัย
+**TUNorth-Hub** เป็นแพลตฟอร์มการจัดการเรียนรู้ดิจิทัล (LMS EdTech) ที่ออกแบบมาเพื่อ **โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ** โดยเฉพาะ เน้นกลุ่มเป้าหมายนักเรียนมัธยมศึกษาตอนปลาย (~2,000 คน) และคณะครูผู้สอน รองรับการเรียนรู้แบบ On-Demand, การประเมินผลออนไลน์, การจัดการไฟล์วิดีโอ/สไลด์การสอน, การพรีวิวบทเรียนสำหรับครูผู้สอน, **Interactive Code Playground** สำหรับฝึกเขียนโค้ด Python ในเบราว์เซอร์, ระบบส่งและตรวจการบ้าน, **ระบบแบบทดสอบออนไลน์ (Interactive Quiz Engine)** พร้อมตัวนับเวลาถอยหลัง ตรวจคะแนนอัตโนมัติ กำหนดจำกัดจำนวนครั้งการทำแบบทดสอบ (Quiz Attempt Limits), **ระบบนำเข้าชุดข้อสอบแบบ Batch (Quiz & Question Import Engine)** ผ่านไฟล์ Excel (.xlsx) และ CSV รองรับการเฉลยแบบอัจฉริยะ โหมดเพิ่มต่อท้าย (Append) และแทนที่ทั้งหมด (Replace) พร้อมดาวน์โหลดแม่แบบ, **ระบบออกใบประกาศนียบัตร (Certificate of Completion)** เมื่อเรียนจบ 100% พร้อมหน้าระบบตรวจสอบความถูกต้องของใบรับรองแบบสาธารณะ, **ระบบจัดการหน้าแรกแบบไดนามิก (Landing Page CMS)** ที่ผู้ดูแลระบบสามารถปรับแต่ง Hero Banner, แถบสถิติ, การ์ดจุดเด่น, คอร์สแนะนำ, ขั้นตอนการเรียน, FAQ Accordion และส่วนท้ายเว็บได้แบบ Real-time ตลอดจน **ระบบโปรไฟล์ผู้ใช้งาน (User Profile System)** สำหรับจัดการข้อมูลส่วนตัว อัปโหลดรูปภาพ Avatar สรุปสถิติกิจกรรมตามบทบาท (Role-Adaptive Activity Stats) และระบบเปลี่ยนรหัสผ่านที่ปลอดภัย
 
 ### 1.2 ข้อมูลสเกลและการใช้งาน (Target Scale & Workload)
 * **สถาบันการศึกษา:** โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (Triam Udom Suksa Phak Nuea School)
@@ -19,6 +19,7 @@
 * **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Lucide React
 * **Typography:** ฟอนต์หลักภาษาไทย **Prompt** (Google Fonts) และฟอนต์ภาษาอังกฤษ/ตัวเลข **Inter**
 * **Design System & Theme:** รองรับ **Dark / Light Mode** สลับโหมดสีอัตโนมัติ/กำหนดเอง พร้อมระบบ **Dynamic Branding & Custom Theme** (ปรับเปลี่ยน Logo, Favicon, Primary Theme Color ได้แบบ Real-time ผ่าน Admin Panel) และชุดสี Brand Token เริ่มต้น (`#5f06c4` / `#2563eb`), Adaptive Surface, รองรับ Responsive ทุกอุปกรณ์ (PC, Tablet, iPad Air, Mobile)
+* **Modal & Layout Architecture:** สถาปัตยกรรม Popup Modal แบบ Responsive Frame Optimization (`max-h-[92vh]` + `flex-1 min-h-0` + Independent Inner Scroll) ป้องกันเนื้อหาล้นหน้าจอในทุกขนาดความละเอียดหน้าจอ
 * **Notification & Toast System:** **Sonner Toast** (`sonner` + `@/lib/toast`) ขับเคลื่อนระบบแจ้งเตือนแบบ Reactive สอดรับกับสถานะ Dark / Light Mode อัตโนมัติ พร้อมระบบตั้งเวลาแสดงผลแยกตามประเภท (Error 5s, Warning 4s, Success/Info 3s) ยกเลิกการใช้ Native Browser `alert()` และ Static Action Banners ทั้งหมดในระบบ เพื่อประสบการณ์ใช้งานที่ลื่นไหลระดับสากล
 * **Role-Based Access Control (RBAC) & Governance:** แยกสิทธิ์การเข้าถึงแบบเด็ดขาด (Strict Role Isolation 100%) พร้อมระบบ **Enforced Maintenance Mode** และ **Student Self-Registration**
   - 👨‍💼 **ADMIN:** เข้าถึงเฉพาะ `/admin`, `/admin/categories`, `/admin/landing`, `/admin/settings` และ `/profile` (ห้ามเข้า `/teacher` และ `/student`)
@@ -34,7 +35,7 @@
 * **Admin System Settings & Diagnostics:** ควบคุมข้อมูลโรงเรียน, ลายเซ็นผู้อำนวยการบนเกียรติบัตร, แถบประกาศทั่วทั้งระบบ (Banner), สวิตช์ปิดปรับปรุงระบบ (Maintenance Guard), และแดชบอร์ดตรวจสอบสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime
 * **Landing Page Management System (Landing Page CMS):** แดชบอร์ดจัดการหน้าแรกสำหรับ Admin (`/admin/landing`) รูปแบบ Card Grid Tabs 7 หมวดหมู่ (Hero, Stats, Features, Featured Courses, Steps, FAQ, CTA/Footer) พร้อมระบบจัดการรูปภาพ Hero Banner และพรีวิวแบบ Real-time บนหน้าแรก (`/`)
 * **Interactive Code Playground:** Client-Side WebAssembly (Pyodide v0.26.2 สำหรับ Python) + Monaco Code Editor รองรับการแสดงผล Console, Stderr/Stdout capture, และคำสั่ง `input()` แบบ Interactive ผ่าน `pyodide.setStdin`
-* **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมตัวนับเวลาถอยหลัง (Timer), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
+* **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมระบบ Batch Quiz Import (.xlsx / .csv), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
 * **Certificate Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมลายเซ็นและตราประทับโรงเรียน รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape) และหน้าตรวจสอบความถูกต้องสาธารณะ (`/verify/[code]`)
 * **DevOps & Proxy:** Nginx Reverse Proxy + Docker & Docker Compose (Production & Dev Stacks)
 
@@ -267,6 +268,8 @@
 | `PUT` | `/api/teacher/quizzes/:id` | TEACHER | แก้ไขแบบทดสอบ (เวลา, เกณฑ์ผ่าน, `max_attempts`) |
 | `DELETE`| `/api/teacher/quizzes/:id` | TEACHER | ลบแบบทดสอบ |
 | `POST` | `/api/teacher/quizzes/:quizId/questions` | TEACHER | เพิ่มคำถามใหม่ (ปรนัย/ถูกผิด) |
+| `POST` | `/api/teacher/quizzes/:quizId/import` | TEACHER | นำเข้าชุดข้อสอบแบบ Batch ผ่านไฟล์ CSV หรือ Excel (.xlsx) พร้อมโหมด Append / Replace |
+| `GET`  | `/api/teacher/quizzes/template` | TEACHER | ดาวน์โหลดไฟล์แม่แบบข้อสอบตัวอย่าง (.xlsx / .csv) |
 | `PUT` | `/api/teacher/questions/:id` | TEACHER | แก้ไขโจทย์ ตัวเลือก เฉลย และคะแนนข้อสอบ |
 | `DELETE`| `/api/teacher/questions/:id` | TEACHER | ลบข้อสอบ |
 | `GET` | `/api/teacher/quizzes/:id/stats` | TEACHER | ดึงสถิติและประวัติการทำแบบทดสอบของนักเรียน |
@@ -322,6 +325,7 @@
 ### 📌 Phase 4: Assessment, Code Playground & Certificate System
 - [x] Build Assignment Creation, Submission & Grading System (Teacher assigns, Student uploads file/text, Teacher grades & feedbacks)
 - [x] Build Interactive Quiz Engine (Question Builder, Timer, Auto-Grading Logic, Attempts History, and Max Attempts Quota Limit)
+- [x] Implement **Quiz & Question Import Engine** (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder) [ดูแผนงานใน docs/quiz_import_system_plan.md]
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
 - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
 
@@ -380,10 +384,21 @@ go run cmd/seed/main.go
 * **นักเรียน 1 (Student 1):** `student1@tunorth.ac.th` / รหัสผ่าน: `Password123!` (ชั้น ม.4/1)
 * **นักเรียน 2 (Student 2):** `student2@tunorth.ac.th` / รหัสผ่าน: `Password123!` (ชั้น ม.4/1)
 
-### 5.4 การรัน Production Stack
+### 5.4 การรันชุดทดสอบความถูกต้อง (Automated Test Suites)
+```powershell
+# รัน Unit Tests ฝั่ง Backend Go ทั้งหมด (Handlers, Services, Parser, RBAC)
+cd backend
+go test -v ./internal/...
+
+# รัน Type Check และ Production Build ฝั่ง Frontend Next.js 16
+cd frontend
+bun run build
+```
+
+### 5.5 การรัน Production Stack
 ```powershell
 docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats) และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบนำเข้าชุดข้อสอบแบบ Batch (Quiz & Question Import Engine CSV/XLSX), การปรับปรุง Modal Architecture ป้องกันข้อมูลล้นกรอบ (Responsive Frame Optimization), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats) และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*

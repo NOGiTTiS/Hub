@@ -13,6 +13,7 @@ import (
 	"tunorth-hub-backend/internal/database"
 	"tunorth-hub-backend/internal/middleware"
 	"tunorth-hub-backend/internal/models"
+	"tunorth-hub-backend/internal/services"
 )
 
 type QuizHandler struct {
@@ -349,6 +350,172 @@ func (h *QuizHandler) GetQuizStats(c *fiber.Ctx) error {
 		"success": true,
 		"data":    attempts,
 	})
+}
+
+// ImportQuestions handles CSV / Excel batch import into a quiz
+func (h *QuizHandler) ImportQuestions(c *fiber.Ctx) error {
+	quizID, err := uuid.Parse(c.Params("quizId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสแบบทดสอบไม่ถูกต้อง",
+		})
+	}
+
+	// 1. Ownership verification (Admin or Teacher owner of the course)
+	claims := middleware.GetCurrentUser(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบข้อมูลผู้ใช้งาน",
+		})
+	}
+
+	if h.db == nil || h.db.DB == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ระบบฐานข้อมูลไม่พร้อมใช้งาน",
+		})
+	}
+
+	// 2. Fetch Quiz
+	var quiz models.Quiz
+	if err := h.db.DB.First(&quiz, "id = ?", quizID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบแบบทดสอบ",
+		})
+	}
+
+	if claims.Role != models.RoleAdmin {
+		var lesson models.Lesson
+		if err := h.db.DB.First(&lesson, "id = ?", quiz.LessonID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบบทเรียนของแบบทดสอบนี้",
+			})
+		}
+
+		var module models.Module
+		if err := h.db.DB.First(&module, "id = ?", lesson.ModuleID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบโมดูลของบทเรียนนี้",
+			})
+		}
+
+		var course models.Course
+		if err := h.db.DB.First(&course, "id = ?", module.CourseID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบคอร์สวิชาของแบบทดสอบนี้",
+			})
+		}
+
+		if course.TeacherID != claims.UserID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"message": "คุณไม่มีสิทธิ์จัดการแบบทดสอบในรายวิชานี้",
+			})
+		}
+	}
+
+	// 3. Extract uploaded file
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "กรุณาแนบไฟล์ .csv หรือ .xlsx สำหรับนำเข้า",
+		})
+	}
+
+	// Max 10MB
+	if fileHeader.Size > 10*1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "ขนาดไฟล์ต้องไม่เกิน 10MB",
+		})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "เกิดข้อผิดพลาดในการเปิดไฟล์: " + err.Error(),
+		})
+	}
+	defer file.Close()
+
+	// 4. Parse file
+	rawRows, err := services.ParseQuizFile(fileHeader.Filename, file)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	if len(rawRows) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "ไฟล์ไม่มีแถวข้อมูลข้อสอบที่จะนำเข้า",
+		})
+	}
+
+	// 5. Process Import
+	mode := strings.ToLower(c.FormValue("mode", "append"))
+	result, err := services.ProcessBatchQuizImport(h.db.DB, quizID, rawRows, mode)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "เกิดข้อผิดพลาดในการบันทึกข้อสอบ: " + err.Error(),
+		})
+	}
+
+	if result.Failed > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("พบข้อผิดพลาดในการตรวจสอบข้อมูล %d แถว (จากทั้งหมด %d แถว)", result.Failed, result.Total),
+			"data":    result,
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": fmt.Sprintf("นำเข้าข้อสอบสำเร็จ %d ข้อ", result.Imported),
+		"data":    result,
+	})
+}
+
+// DownloadQuizTemplate returns sample CSV or Excel file
+func (h *QuizHandler) DownloadQuizTemplate(c *fiber.Ctx) error {
+	format := strings.ToLower(c.Query("format", "xlsx"))
+
+	if format == "csv" {
+		data, err := services.GenerateQuizTemplateCSV()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่สามารถสร้างไฟล์แม่แบบ CSV ได้",
+			})
+		}
+
+		c.Set("Content-Type", "text/csv; charset=utf-8")
+		c.Set("Content-Disposition", `attachment; filename="quiz_import_template.csv"`)
+		return c.Send(data)
+	}
+
+	data, err := services.GenerateQuizTemplateXLSX()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถสร้างไฟล์แม่แบบ Excel ได้",
+		})
+	}
+
+	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set("Content-Disposition", `attachment; filename="quiz_import_template.xlsx"`)
+	return c.Send(data)
 }
 
 // --- STUDENT QUIZ HANDLERS ---

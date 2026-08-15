@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { toast } from "@/lib/toast"
-import { apiFetch } from "@/lib/api"
+import { apiFetch, API_BASE_URL } from "@/lib/api"
 import {
   X,
   PlusCircle,
@@ -16,6 +16,12 @@ import {
   CheckCircle2,
   Users,
   Eye,
+  FileSpreadsheet,
+  UploadCloud,
+  Download,
+  AlertCircle,
+  FileText,
+  Layers,
 } from "lucide-react"
 
 interface Question {
@@ -56,6 +62,12 @@ interface QuizBuilderModalProps {
   onClose: () => void
 }
 
+interface ImportErrorItem {
+  row: number
+  question?: string
+  error: string
+}
+
 export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilderModalProps) {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null)
@@ -81,6 +93,15 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
     correct_answer: "ตัวเลือก ก",
     points: 1,
   })
+
+  // Import Modal States
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importMode, setImportMode] = useState<"append" | "replace">("append")
+  const [isUploadingQuiz, setIsUploadingQuiz] = useState(false)
+  const [isDragOverQuiz, setIsDragOverQuiz] = useState(false)
+  const [importErrors, setImportErrors] = useState<ImportErrorItem[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Stats
   const [attempts, setAttempts] = useState<Attempt[]>([])
@@ -250,13 +271,106 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
     }
   }
 
+  // --- IMPORT QUIZ ACTIONS ---
+  const handleOpenImportModal = () => {
+    setImportFile(null)
+    setImportMode("append")
+    setImportErrors([])
+    setShowImportModal(true)
+  }
+
+  const handleCloseImportModal = () => {
+    setShowImportModal(false)
+    setImportFile(null)
+    setImportErrors([])
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOverQuiz(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOverQuiz(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOverQuiz(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]
+      const ext = file.name.split(".").pop()?.toLowerCase()
+      if (ext === "csv" || ext === "xlsx" || ext === "xls") {
+        setImportFile(file)
+        setImportErrors([])
+      } else {
+        toast.error("รองรับเฉพาะไฟล์ .csv หรือ .xlsx เท่านั้น")
+      }
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      const ext = file.name.split(".").pop()?.toLowerCase()
+      if (ext === "csv" || ext === "xlsx" || ext === "xls") {
+        setImportFile(file)
+        setImportErrors([])
+      } else {
+        toast.error("รองรับเฉพาะไฟล์ .csv หรือ .xlsx เท่านั้น")
+      }
+    }
+  }
+
+  const handleImportQuizSubmit = async () => {
+    if (!activeQuiz) {
+      toast.error("ไม่พบข้อมูลชุดแบบทดสอบ")
+      return
+    }
+    if (!importFile) {
+      toast.error("กรุณาเลือกไฟล์ข้อสอบ .csv หรือ .xlsx ก่อนดำเนินการ")
+      return
+    }
+
+    if (importMode === "replace") {
+      const confirmed = confirm("คำเตือน: โหมด 'แทนที่ข้อสอบเดิมทั้งหมด' จะลบข้อสอบเดิมในชุดนี้ทั้งหมดและแทนที่ด้วยข้อสอบจากไฟล์ ต้องการดำเนินการต่อหรือไม่?")
+      if (!confirmed) return
+    }
+
+    setIsUploadingQuiz(true)
+    setImportErrors([])
+
+    const formData = new FormData()
+    formData.append("file", importFile)
+    formData.append("mode", importMode)
+
+    const res = await apiFetch(`/api/teacher/quizzes/${activeQuiz.id}/import`, {
+      method: "POST",
+      body: formData,
+    })
+
+    if (res.success) {
+      toast.success(res.message || "นำเข้าข้อสอบสำเร็จแล้ว")
+      handleCloseImportModal()
+      fetchQuizzes()
+    } else {
+      if (res.data?.errors && Array.isArray(res.data.errors) && res.data.errors.length > 0) {
+        setImportErrors(res.data.errors)
+      }
+      toast.error(res.message || "เกิดข้อผิดพลาดในการนำเข้าข้อสอบ")
+    }
+
+    setIsUploadingQuiz(false)
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-5xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
               <HelpCircle className="w-5 h-5" />
             </div>
             <div>
@@ -272,7 +386,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -285,7 +399,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
           </div>
         ) : !activeQuiz ? (
           /* NO QUIZ YET: CREATE QUIZ FORM */
-          <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-4">
             <HelpCircle className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
             <h4 className="font-bold text-slate-900 dark:text-white">
               บทเรียนนี้ยังไม่มีชุดแบบทดสอบ
@@ -375,13 +489,13 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
           </div>
         ) : (
           /* QUIZ TABS & CONTENT */
-          <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col space-y-4 overflow-hidden">
             {/* TABS */}
-            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setActiveTab("questions")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                   activeTab === "questions"
                     ? "bg-amber-600 text-white shadow"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -393,7 +507,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
               <button
                 type="button"
                 onClick={() => setActiveTab("settings")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                   activeTab === "settings"
                     ? "bg-amber-600 text-white shadow"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -408,7 +522,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                   setActiveTab("stats")
                   if (activeQuiz) fetchStats(activeQuiz.id)
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                   activeTab === "stats"
                     ? "bg-amber-600 text-white shadow"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -420,7 +534,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
               <button
                 type="button"
                 onClick={() => handleDeleteQuiz(activeQuiz.id)}
-                className="ml-auto text-xs font-bold text-red-500 hover:text-red-700 p-2 rounded-lg"
+                className="ml-auto text-xs font-bold text-red-500 hover:text-red-700 p-2 rounded-lg shrink-0"
                 title="ลบชุดแบบทดสอบนี้"
               >
                 <Trash2 className="w-4 h-4" />
@@ -429,34 +543,60 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
 
             {/* TAB 1: QUESTIONS */}
             {activeTab === "questions" && (
-              <div className="flex-1 flex flex-col space-y-4 overflow-y-auto pr-1">
-                <div className="flex items-center justify-between">
+              <div className="flex-1 min-h-0 flex flex-col space-y-4 overflow-y-auto pr-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
                   <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    ข้อสอบทั้งหมดในชุดนี้
+                    ข้อสอบทั้งหมดในชุดนี้ ({activeQuiz.questions?.length || 0} ข้อ)
                   </h4>
-                  <button
-                    type="button"
-                    onClick={handleOpenAddQuestion}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    เพิ่มข้อสอบใหม่
-                  </button>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenImportModal}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-sm"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      นำเข้าไฟล์ข้อสอบ (CSV / Excel)
+                    </button>
 
-                {(!activeQuiz.questions || activeQuiz.questions.length === 0) ? (
-                  <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-2">
-                    <p className="text-xs text-slate-400">ยังไม่มีคำถามในแบบทดสอบนี้</p>
                     <button
                       type="button"
                       onClick={handleOpenAddQuestion}
-                      className="text-xs font-bold text-amber-600 hover:underline"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow transition"
                     >
-                      + คลิกเพิ่มคำถามข้อแรก
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      เพิ่มข้อสอบใหม่
                     </button>
                   </div>
+                </div>
+
+                {(!activeQuiz.questions || activeQuiz.questions.length === 0) ? (
+                  <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center space-y-3 my-auto">
+                    <FileText className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">ยังไม่มีคำถามในแบบทดสอบนี้</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">คุณสามารถพิมพ์สร้างข้อสอบทีละข้อ หรืออัปโหลดไฟล์แม่แบบ CSV/Excel เข้ามาพร้อมกันได้</p>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleOpenAddQuestion}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow transition"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        เพิ่มข้อสอบข้อแรก
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenImportModal}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-sm"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        นำเข้าไฟล์ข้อสอบ (CSV / Excel)
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 pb-2">
                     {activeQuiz.questions.map((q, idx) => {
                       let opts: string[] = []
                       try {
@@ -466,20 +606,25 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                       return (
                         <div
                           key={q.id}
-                          className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-2"
+                          className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-2.5"
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-2.5">
-                              <span className="w-5 h-5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-600 font-bold text-xs flex items-center justify-center shrink-0">
+                            <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                              <span className="w-5 h-5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-600 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
                                 {idx + 1}
                               </span>
-                              <div>
-                                <h5 className="text-xs font-bold text-slate-900 dark:text-white">
+                              <div className="flex-1 min-w-0">
+                                <h5 className="text-xs font-bold text-slate-900 dark:text-white break-words">
                                   {q.question_text}
                                 </h5>
-                                <span className="text-[10px] text-slate-400">
-                                  {q.points} คะแนน
-                                </span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                                    {q.question_type === "TRUE_FALSE" ? "ถูก/ผิด" : "ปรนัย"}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    {q.points} คะแนน
+                                  </span>
+                                </div>
                               </div>
                             </div>
 
@@ -487,23 +632,25 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                               <button
                                 type="button"
                                 onClick={() => handleOpenEditQuestion(q)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition"
+                                title="แก้ไขข้อสอบ"
                               >
                                 <Edit className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteQuestion(q.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                                title="ลบข้อสอบ"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-1.5 pl-7 text-[11px] text-slate-500">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-7 text-[11px] text-slate-500 dark:text-slate-400">
                             {opts.map((opt, oIdx) => (
-                              <div key={oIdx} className="truncate">
+                              <div key={oIdx} className="break-words">
                                 • {opt}
                               </div>
                             ))}
@@ -518,88 +665,92 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
 
             {/* TAB 2: SETTINGS */}
             {activeTab === "settings" && (
-              <form onSubmit={handleCreateOrUpdateQuiz} className="space-y-4 max-w-md">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    ชื่อแบบทดสอบ
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={quizForm.title}
-                    onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                <form onSubmit={handleCreateOrUpdateQuiz} className="space-y-4 max-w-lg pb-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      เวลาจำกัด (นาที)
+                      ชื่อแบบทดสอบ
                     </label>
                     <input
-                      type="number"
-                      min={1}
-                      value={quizForm.time_limit_minutes}
-                      onChange={(e) =>
-                        setQuizForm({ ...quizForm, time_limit_minutes: parseInt(e.target.value) || 15 })
-                      }
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                      type="text"
+                      required
+                      value={quizForm.title}
+                      onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        เวลาจำกัด (นาที)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={quizForm.time_limit_minutes}
+                        onChange={(e) =>
+                          setQuizForm({ ...quizForm, time_limit_minutes: parseInt(e.target.value) || 15 })
+                        }
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        เกณฑ์ผ่าน (%)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={quizForm.passing_score}
+                        onChange={(e) =>
+                          setQuizForm({ ...quizForm, passing_score: parseInt(e.target.value) || 60 })
+                        }
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      เกณฑ์ผ่าน (%)
+                      จำกัดจำนวนครั้งการทำแบบทดสอบ (0 = ไม่จำกัด)
                     </label>
                     <input
                       type="number"
-                      min={1}
-                      max={100}
-                      value={quizForm.passing_score}
+                      min={0}
+                      value={quizForm.max_attempts}
                       onChange={(e) =>
-                        setQuizForm({ ...quizForm, passing_score: parseInt(e.target.value) || 60 })
+                        setQuizForm({
+                          ...quizForm,
+                          max_attempts: parseInt(e.target.value) >= 0 ? parseInt(e.target.value) : 0,
+                        })
                       }
+                      placeholder="0 = ทำได้ไม่จำกัดจำนวนครั้ง"
                       className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
                     />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      💡 กำหนดจำนวนครั้งสูงสุดที่อนุญาตให้นักเรียนทำแบบทดสอบชุดนี้ (0 = ทำได้เรื่อยๆ ไม่จำกัด)
+                    </p>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    จำกัดจำนวนครั้งการทำแบบทดสอบ (0 = ไม่จำกัด)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={quizForm.max_attempts}
-                    onChange={(e) =>
-                      setQuizForm({
-                        ...quizForm,
-                        max_attempts: parseInt(e.target.value) >= 0 ? parseInt(e.target.value) : 0,
-                      })
-                    }
-                    placeholder="0 = ทำได้ไม่จำกัดจำนวนครั้ง"
-                    className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    💡 กำหนดจำนวนครั้งสูงสุดที่อนุญาตให้นักเรียนทำแบบทดสอบชุดนี้ (0 = ทำได้เรื่อยๆ ไม่จำกัด)
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition"
-                >
-                  {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
-                </button>
-              </form>
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition"
+                    >
+                      {isSaving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
+                    </button>
+                  </div>
+                </form>
+              </div>
             )}
 
             {/* TAB 3: STATS */}
             {activeTab === "stats" && (
-              <div className="flex-1 overflow-y-auto space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
                 {isLoadingStats ? (
                   <div className="py-12 text-center text-slate-400 text-xs">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-amber-500" />
@@ -610,8 +761,8 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                     ยังไม่มีนักเรียนทำแบบทดสอบชุดนี้
                   </p>
                 ) : (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
-                    <table className="w-full text-xs text-left">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
+                    <table className="w-full text-xs text-left min-w-[500px]">
                       <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                         <tr>
                           <th className="p-3">ชื่อ-นามสกุล นักเรียน</th>
@@ -660,96 +811,98 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
 
         {/* QUESTION MODAL */}
         {showQuestionModal && (
-          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
+          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                   {editingQuestionId ? "แก้ไขข้อสอบ" : "เพิ่มข้อสอบใหม่"}
                 </h4>
                 <button
                   type="button"
                   onClick={() => setShowQuestionModal(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveQuestion} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    โจทย์คำถาม <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    placeholder="พิมพ์โจทย์คำถาม..."
-                    value={questionForm.question_text}
-                    onChange={(e) =>
-                      setQuestionForm({ ...questionForm, question_text: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
+              <form onSubmit={handleSaveQuestion} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-4 pr-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      โจทย์คำถาม <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="พิมพ์โจทย์คำถาม..."
+                      value={questionForm.question_text}
+                      onChange={(e) =>
+                        setQuestionForm({ ...questionForm, question_text: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      ตัวเลือกคำตอบ (Choices) <span className="text-red-500">*</span>
+                    </label>
+                    {questionForm.options.map((opt, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs flex items-center justify-center shrink-0">
+                          {String.fromCharCode(65 + idx)}
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          placeholder={`ตัวเลือก ${String.fromCharCode(65 + idx)}`}
+                          value={opt}
+                          onChange={(e) => {
+                            const newOpts = [...questionForm.options]
+                            newOpts[idx] = e.target.value
+                            setQuestionForm({ ...questionForm, options: newOpts })
+                          }}
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                        />
+                        <input
+                          type="radio"
+                          name="correct_answer"
+                          checked={questionForm.correct_answer === opt && opt !== ""}
+                          onChange={() =>
+                            setQuestionForm({ ...questionForm, correct_answer: opt })
+                          }
+                          title="กำหนดให้เป็นข้อที่ถูกต้อง"
+                          className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                        />
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-slate-400">
+                      🔘 ติ๊กปุ่ม Radio ด้านขวาเพื่อระบุข้อที่เป็นคำตอบที่ถูกต้อง
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      คะแนนเต็มของข้อนี้
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={questionForm.points}
+                      onChange={(e) =>
+                        setQuestionForm({ ...questionForm, points: parseInt(e.target.value) || 1 })
+                      }
+                      className="w-28 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    ตัวเลือกคำตอบ (Choices) <span className="text-red-500">*</span>
-                  </label>
-                  {questionForm.options.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs flex items-center justify-center shrink-0">
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder={`ตัวเลือก ${String.fromCharCode(65 + idx)}`}
-                        value={opt}
-                        onChange={(e) => {
-                          const newOpts = [...questionForm.options]
-                          newOpts[idx] = e.target.value
-                          setQuestionForm({ ...questionForm, options: newOpts })
-                        }}
-                        className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                      />
-                      <input
-                        type="radio"
-                        name="correct_answer"
-                        checked={questionForm.correct_answer === opt && opt !== ""}
-                        onChange={() =>
-                          setQuestionForm({ ...questionForm, correct_answer: opt })
-                        }
-                        title="กำหนดให้เป็นข้อที่ถูกต้อง"
-                        className="w-4 h-4 text-amber-600 focus:ring-amber-500"
-                      />
-                    </div>
-                  ))}
-                  <p className="text-[10px] text-slate-400">
-                    🔘 ติ๊กปุ่ม Radio ด้านขวาเพื่อระบุข้อที่เป็นคำตอบที่ถูกต้อง
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    คะแนนเต็มของข้อนี้
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={questionForm.points}
-                    onChange={(e) =>
-                      setQuestionForm({ ...questionForm, points: parseInt(e.target.value) || 1 })
-                    }
-                    className="w-28 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowQuestionModal(false)}
-                    className="px-4 py-2 rounded-xl text-xs text-slate-600 dark:text-slate-400"
+                    className="px-4 py-2 rounded-xl text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     ยกเลิก
                   </button>
@@ -762,6 +915,225 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* IMPORT QUIZ MODAL */}
+        {showImportModal && activeQuiz && (
+          <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl space-y-5 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+              {/* MODAL HEADER */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      นำเข้าชุดข้อสอบ (Import Questions)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      เพิ่มข้อสอบจำนวนมากเข้าสู่ชุด {activeQuiz.title} ผ่านไฟล์ CSV หรือ Excel
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseImportModal}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+                {/* TEMPLATE DOWNLOAD BOX */}
+                <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ดาวน์โหลดไฟล์แม่แบบข้อสอบ (Templates)
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      มีตัวอย่างข้อสอบ ปรนัย 4 ตัวเลือก และถูก/ผิด พร้อมสูตรและหัวตาราง
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={`${API_BASE_URL}/api/teacher/quizzes/template?format=xlsx`}
+                      download="quiz_import_template.xlsx"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      แม่แบบ .XLSX
+                    </a>
+                    <a
+                      href={`${API_BASE_URL}/api/teacher/quizzes/template?format=csv`}
+                      download="quiz_import_template.csv"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      แม่แบบ .CSV
+                    </a>
+                  </div>
+                </div>
+
+                {/* IMPORT MODE SELECTION */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    เลือกรูปแบบการนำเข้า (Import Mode)
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div
+                      onClick={() => setImportMode("append")}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
+                        importMode === "append"
+                          ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200"
+                          : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="importMode"
+                        checked={importMode === "append"}
+                        onChange={() => setImportMode("append")}
+                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div>
+                        <div className="text-xs font-bold">เพิ่มต่อท้าย (Append)</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          เพิ่มข้อสอบใหม่ต่อท้ายชุดเดิมที่มีอยู่ {activeQuiz.questions?.length || 0} ข้อ
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setImportMode("replace")}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
+                        importMode === "replace"
+                          ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200"
+                          : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="importMode"
+                        checked={importMode === "replace"}
+                        onChange={() => setImportMode("replace")}
+                        className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-amber-700 dark:text-amber-400">แทนที่ทั้งหมด (Replace)</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          ล้างข้อสอบเดิมทั้งหมดในชุดนี้ แล้วใส่ข้อสอบใหม่จากไฟล์
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DRAG & DROP FILE ZONE */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    อัปโหลดไฟล์ (.xlsx, .xls, .csv)
+                  </label>
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all ${
+                      isDragOverQuiz
+                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 scale-[0.99]"
+                        : "border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50/50 dark:bg-slate-950/50"
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <UploadCloud className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
+                    {importFile ? (
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          {importFile.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          ขนาด {(importFile.size / 1024).toFixed(1)} KB · คลิกหรือลากไฟล์ใหม่เพื่อเปลี่ยน
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          รองรับไฟล์ Excel (.xlsx, .xls) และ CSV ขนาดไม่เกิน 10MB
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ERROR LIST BREAKDOWN */}
+                {importErrors.length > 0 && (
+                  <div className="p-4 rounded-2xl border border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/40 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>พบข้อผิดพลาด {importErrors.length} รายการในไฟล์:</span>
+                    </div>
+                    <div className="max-h-36 overflow-y-auto space-y-1 pr-1 text-xs">
+                      {importErrors.map((err, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-start gap-2 text-[11px] text-red-700 dark:text-red-300 bg-white/60 dark:bg-red-900/20 p-2 rounded-xl border border-red-100 dark:border-red-900/40"
+                        >
+                          <span className="font-bold shrink-0">แถวที่ {err.row}:</span>
+                          <span>{err.error}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-red-500 dark:text-red-400">
+                      💡 กรุณาแก้ไขข้อผิดพลาดในไฟล์ Excel/CSV ตามแถวที่ระบุ แล้วอัปโหลดใหม่อีกครั้ง
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* MODAL FOOTER */}
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleCloseImportModal}
+                  disabled={isUploadingQuiz}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleImportQuizSubmit}
+                  disabled={!importFile || isUploadingQuiz}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition disabled:opacity-50"
+                >
+                  {isUploadingQuiz ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      กำลังนำเข้าข้อสอบ...
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-4 h-4" />
+                      เริ่มนำเข้าข้อสอบ
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
