@@ -91,7 +91,7 @@ D:\Hub
 
 ## 📊 4. โครงสร้างฐานข้อมูล (Database Entities & Relationships)
 
-1. **`users`**: `id` (UUID PK), `email` (Unique), `password_hash`, `first_name`, `last_name`, `role` (`STUDENT`, `TEACHER`, `ADMIN`), `grade_level` (เช่น `M4`, `M5`, `M6`), `classroom` (เช่น `1`, `2`)
+1. **`users`**: `id` (UUID PK), `email` (Unique), `password_hash`, `first_name`, `last_name`, `avatar_url`, `bio`, `phone_number`, `role` (`STUDENT`, `TEACHER`, `ADMIN`), `grade_level` (เช่น `M4`, `M5`, `M6`), `classroom` (เช่น `1`, `2`)
 2. **`courses`**: `id` (UUID PK), `title`, `description`, `cover_image_url`, `teacher_id` (FK -> `users`), `is_published`
 3. **`modules`**: `id` (UUID PK), `course_id` (FK -> `courses`), `title`, `order_index`
 4. **`lessons`**: `id` (UUID PK), `module_id` (FK -> `modules`), `title`, `content_type` (`VIDEO_UPLOAD`, `VIDEO_EMBED`, `SLIDE_PDF`, `CODE_LAB`, `TEXT`), `video_url`, `embed_url`, `pdf_url`, `body_text`, `order_index`
@@ -142,6 +142,7 @@ D:\Hub
   - [x] Implement Real-time System Health & Storage Diagnostics Engine
   - [x] Implement **Landing Page Management System (Landing Page CMS)** (`/admin/landing`) with Dynamic Sections Customizer (Hero, Stats Bar, Core Features Grid, Featured Courses Showcase, Steps Timeline, Interactive FAQ, CTA Banner, and Public API Integration)
   - [x] Implement Sonner Toast Notification System (`sonner` + `AppToaster` + `@/lib/toast`)
+  - [x] Implement **User Profile System** (`/profile` & `/api/profile`) with Role-Adaptive Activity Stats, Avatar Upload, and Password Management
 - [ ] **Phase 6: Testing, Performance Hardening & Production Deployment** *(Next Step)*
 
 ---

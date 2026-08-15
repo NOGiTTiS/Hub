@@ -25,6 +25,8 @@ import {
 } from "lucide-react"
 
 // Types for Section JSON items
+type TabKey = "hero" | "stats" | "features" | "courses" | "steps" | "faq" | "cta"
+
 interface StatItem {
   label: string
   value: string

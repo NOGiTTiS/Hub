@@ -18,6 +18,7 @@ import {
   Settings,
   Layers,
   LayoutTemplate,
+  User as UserIcon,
 } from "lucide-react"
 
 export function Navbar() {
@@ -161,24 +162,48 @@ export function Navbar() {
 
           {user && (
             <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800 shrink-0">
-              <div className="text-right">
-                <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 max-w-[150px]">
-                  {user.first_name} {user.last_name}
-                </div>
-                <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${roleInfo.color}`}
-                  >
-                    <RoleIcon className="w-3 h-3" />
-                    {roleInfo.label}
-                  </span>
-                  {user.grade_level && (
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                      {user.grade_level} {user.classroom ? `/${user.classroom}` : ""}
+              <Link
+                href="/profile"
+                title="ดูและแก้ไขโปรไฟล์"
+                className="flex items-center gap-3 p-1.5 -m-1.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all group"
+              >
+                <div className="text-right">
+                  <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-1 max-w-[140px]">
+                    {user.first_name} {user.last_name}
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${roleInfo.color}`}
+                    >
+                      <RoleIcon className="w-3 h-3" />
+                      {roleInfo.label}
                     </span>
+                    {user.grade_level && (
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {user.grade_level} {user.classroom ? `/${user.classroom}` : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* USER AVATAR */}
+                <div className="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-brand-500/40 transition-all">
+                  {user.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={getMediaUrl(user.avatar_url)}
+                      alt={`${user.first_name} ${user.last_name}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs font-en">
+                      {`${user.first_name?.charAt(0) || ""}${user.last_name?.charAt(0) || ""}`.toUpperCase() || (
+                        <UserIcon className="w-4 h-4" />
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
+              </Link>
 
               <button
                 type="button"
@@ -210,23 +235,50 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-3">
           {user && (
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 mb-3">
-              <div className="text-xs font-bold text-slate-900 dark:text-white">
-                {user.first_name} {user.last_name}
+            <Link
+              href="/profile"
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 mb-3 flex items-center justify-between gap-3 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                  {user.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={getMediaUrl(user.avatar_url)}
+                      alt={`${user.first_name} ${user.last_name}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs font-en">
+                      {`${user.first_name?.charAt(0) || ""}${user.last_name?.charAt(0) || ""}`.toUpperCase() || (
+                        <UserIcon className="w-4 h-4" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-brand-600 transition-colors">
+                    {user.first_name} {user.last_name}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{user.email}</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${roleInfo.color}`}>
+                      <RoleIcon className="w-3 h-3" />
+                      {roleInfo.label}
+                    </span>
+                    {user.grade_level && (
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        ชั้น {user.grade_level}/{user.classroom}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">{user.email}</div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${roleInfo.color}`}>
-                  <RoleIcon className="w-3 h-3" />
-                  {roleInfo.label}
-                </span>
-                {user.grade_level && (
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    ชั้น {user.grade_level}/{user.classroom}
-                  </span>
-                )}
-              </div>
-            </div>
+              <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/60 px-2 py-1 rounded-lg border border-brand-200 dark:border-brand-900">
+                โปรไฟล์
+              </span>
+            </Link>
           )}
 
           <div className="space-y-1">
@@ -249,6 +301,21 @@ export function Navbar() {
                 </Link>
               )
             })}
+
+            {user && (
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                  pathname === "/profile"
+                    ? "bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <UserIcon className="w-4 h-4" />
+                โปรไฟล์ของฉัน
+              </Link>
+            )}
           </div>
 
           {user && (
@@ -258,7 +325,7 @@ export function Navbar() {
                 setMobileMenuOpen(false)
                 logout()
               }}
-              className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-semibold border border-rose-200 dark:border-rose-900"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-semibold border border-rose-200 dark:border-rose-900 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               ออกจากระบบ

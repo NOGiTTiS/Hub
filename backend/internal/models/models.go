@@ -39,6 +39,9 @@ type User struct {
 	PasswordHash string    `gorm:"type:varchar(255);not null" json:"-"`
 	FirstName    string    `gorm:"type:varchar(100);not null" json:"first_name"`
 	LastName     string    `gorm:"type:varchar(100);not null" json:"last_name"`
+	AvatarURL    *string   `gorm:"type:varchar(500)" json:"avatar_url,omitempty"`
+	Bio          *string   `gorm:"type:text" json:"bio,omitempty"`
+	PhoneNumber  *string   `gorm:"type:varchar(30)" json:"phone_number,omitempty"`
 	Role         Role      `gorm:"type:varchar(20);not null;default:'STUDENT'" json:"role"`
 	GradeLevel   *string   `gorm:"type:varchar(20)" json:"grade_level,omitempty"`
 	Classroom    *string   `gorm:"type:varchar(20)" json:"classroom,omitempty"`

@@ -7,9 +7,10 @@
 ## 1. ภาพรวมระบบ (System Overview)
 
 ### 1.1 วัตถุประสงค์และวิสัยทัศน์ (Vision & Objective)
-**TUNorth-Hub** เป็นแพลตฟอร์มการจัดการเรียนรู้ดิจิทัล (LMS EdTech) ที่ออกแบบมาเพื่อโรงเรียนมัธยมศึกษาโดยเฉพาะ เน้นกลุ่มเป้าหมายนักเรียนมัธยมศึกษาตอนปลาย (~2,000 คน) และคณะครูผู้สอน รองรับการเรียนรู้แบบ On-Demand, การประเมินผลออนไลน์, การจัดการไฟล์วิดีโอ/สไลด์การสอน, การพรีวิวบทเรียนสำหรับครูผู้สอน, **Interactive Code Playground** สำหรับฝึกเขียนโค้ด Python ในเบราว์เซอร์, ระบบส่งและตรวจการบ้าน, ระบบแบบทดสอบออนไลน์พร้อมจับเวลา ตรวจคะแนนอัตโนมัติ และกำหนดจำกัดจำนวนครั้งการทำแบบทดสอบ (Quiz Attempt Limits) ตลอดจน **ระบบออกใบประกาศนียบัตร (Certificate of Completion)** เมื่อเรียนจบ 100% พร้อมหน้าระบบตรวจสอบความถูกต้องของใบรับรองแบบสาธารณะ
+**TUNorth-Hub** เป็นแพลตฟอร์มการจัดการเรียนรู้ดิจิทัล (LMS EdTech) ที่ออกแบบมาเพื่อ **โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ** โดยเฉพาะ เน้นกลุ่มเป้าหมายนักเรียนมัธยมศึกษาตอนปลาย (~2,000 คน) และคณะครูผู้สอน รองรับการเรียนรู้แบบ On-Demand, การประเมินผลออนไลน์, การจัดการไฟล์วิดีโอ/สไลด์การสอน, การพรีวิวบทเรียนสำหรับครูผู้สอน, **Interactive Code Playground** สำหรับฝึกเขียนโค้ด Python ในเบราว์เซอร์, ระบบส่งและตรวจการบ้าน, ระบบแบบทดสอบออนไลน์พร้อมจับเวลา ตรวจคะแนนอัตโนมัติ และกำหนดจำกัดจำนวนครั้งการทำแบบทดสอบ (Quiz Attempt Limits), **ระบบออกใบประกาศนียบัตร (Certificate of Completion)** เมื่อเรียนจบ 100% พร้อมหน้าระบบตรวจสอบความถูกต้องของใบรับรองแบบสาธารณะ, **ระบบจัดการหน้าแรกแบบไดนามิก (Landing Page CMS)** ที่ผู้ดูแลระบบสามารถปรับแต่ง Hero Banner, แถบสถิติ, การ์ดจุดเด่น, คอร์สแนะนำ, ขั้นตอนการเรียน, FAQ Accordion และส่วนท้ายเว็บได้แบบ Real-time ตลอดจน **ระบบโปรไฟล์ผู้ใช้งาน (User Profile System)** สำหรับจัดการข้อมูลส่วนตัว อัปโหลดรูปภาพ Avatar สรุปสถิติกิจกรรมตามบทบาท (Role-Adaptive Activity Stats) และระบบเปลี่ยนรหัสผ่านที่ปลอดภัย
 
 ### 1.2 ข้อมูลสเกลและการใช้งาน (Target Scale & Workload)
+* **สถาบันการศึกษา:** โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (Triam Udom Suksa Phak Nuea School)
 * **ผู้ใช้งานในระบบ (Total Registered Users):** ~2,000 คน (นักเรียน ครู และ Admin)
 * **ผู้ใช้งานพร้อมกันสูงสุด (Peak Concurrent Active Users):** ~150 คน
 * **สภาพแวดล้อมการติดตั้ง (Deployment Environment):** เซิร์ฟเวอร์โรงเรียน (Ubuntu Server 22.04 LTS On-Premise) ผ่าน Docker Containers
@@ -17,18 +18,21 @@
 ### 1.3 สถาปัตยกรรมทางเทคโนโลยีและการออกแบบ (Tech Stack & Architecture)
 * **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Lucide React
 * **Typography:** ฟอนต์หลักภาษาไทย **Prompt** (Google Fonts) และฟอนต์ภาษาอังกฤษ/ตัวเลข **Inter**
-* **Design System & Theme:** รองรับ **Dark / Light Mode** สลับโหมดสีอัตโนมัติ/กำหนดเอง พร้อมระบบ **Dynamic Branding & Custom Theme** (ปรับเปลี่ยน Logo, Favicon, Primary Theme Color ได้แบบ Real-time ผ่าน Admin Panel) และชุดสี Brand Token เริ่มต้น (`#5f06c4` / `#2563eb`), Adaptive Surface, รองรับ Responsive ทุกอุปกรณ์ (PC, Tablet, Mobile)
+* **Design System & Theme:** รองรับ **Dark / Light Mode** สลับโหมดสีอัตโนมัติ/กำหนดเอง พร้อมระบบ **Dynamic Branding & Custom Theme** (ปรับเปลี่ยน Logo, Favicon, Primary Theme Color ได้แบบ Real-time ผ่าน Admin Panel) และชุดสี Brand Token เริ่มต้น (`#5f06c4` / `#2563eb`), Adaptive Surface, รองรับ Responsive ทุกอุปกรณ์ (PC, Tablet, iPad Air, Mobile)
 * **Notification & Toast System:** **Sonner Toast** (`sonner` + `@/lib/toast`) ขับเคลื่อนระบบแจ้งเตือนแบบ Reactive สอดรับกับสถานะ Dark / Light Mode อัตโนมัติ พร้อมระบบตั้งเวลาแสดงผลแยกตามประเภท (Error 5s, Warning 4s, Success/Info 3s) ยกเลิกการใช้ Native Browser `alert()` และ Static Action Banners ทั้งหมดในระบบ เพื่อประสบการณ์ใช้งานที่ลื่นไหลระดับสากล
 * **Role-Based Access Control (RBAC) & Governance:** แยกสิทธิ์การเข้าถึงแบบเด็ดขาด (Strict Role Isolation 100%) พร้อมระบบ **Enforced Maintenance Mode** และ **Student Self-Registration**
-  - 👨‍💼 **ADMIN:** เข้าถึงเฉพาะ `/admin` และ `/admin/settings` (ห้ามเข้า `/teacher` และ `/student`)
-  - 👩‍🏫 **TEACHER:** เข้าถึงเฉพาะ `/teacher` (ห้ามเข้า `/admin` และ `/student` โดยสามารถพรีวิวบทเรียนผ่าน Preview Modal ภายใน Course Builder)
-  - 🧑‍🎓 **STUDENT:** เข้าถึงเฉพาะ `/student` และ `/register` (ห้ามเข้า `/admin` และ `/teacher`)
+  - 👨‍💼 **ADMIN:** เข้าถึงเฉพาะ `/admin`, `/admin/categories`, `/admin/landing`, `/admin/settings` และ `/profile` (ห้ามเข้า `/teacher` และ `/student`)
+  - 👩‍🏫 **TEACHER:** เข้าถึงเฉพาะ `/teacher` และ `/profile` (ห้ามเข้า `/admin` และ `/student` โดยสามารถพรีวิวบทเรียนผ่าน Preview Modal ภายใน Course Builder)
+  - 🧑‍🎓 **STUDENT:** เข้าถึงเฉพาะ `/student`, `/profile` และ `/register` (ห้ามเข้า `/admin` และ `/teacher`)
+  - 👤 **Universal Authenticated Route:** หน้า `/profile` เปิดให้ผู้ใช้ที่เข้าสู่ระบบทุกบทบาทเข้าจัดการข้อมูลส่วนบุคคล เปลี่ยนรหัสผ่าน และดูสถิติกิจกรรมส่วนบุคคล พร้อมปุ่มนำทางกลับสู่แดชบอร์ดตาม Role
+* **User Profile & Personalization Engine:** ระบบจัดการโปรไฟล์ผู้ใช้งาน (`/profile` & `/api/profile`) รองรับการอัปโหลดและเปลี่ยนรูป Avatar (JPG, PNG, WebP) แสดงผลพร้อม Initials Fallback บน Navbar, การแก้ไขข้อมูลติดต่อและ Bio, ระบบเปลี่ยนรหัสผ่านตรวจสอบรหัสเดิมด้วย Bcrypt, และการ์ดแสดงสถิติกิจกรรมที่คำนวณแยกตามบทบาทอัตโนมัติ (Student: คอร์สเรียนจบ/เกียรติบัตร/การบ้าน; Teacher: คอร์สที่สร้าง/เผยแพร่/นักเรียน/งานรอตรวจ; Admin: ผู้ใช้งาน/คอร์สในระบบ)
 * **Frontend Tooling & Package Manager:** **Bun** *(ใช้งาน Bun ทั้งหมดสำหรับ Frontend Dependencies, Dev และ Scripts โดยโค้ดฝั่ง Frontend ห้ามใส่ Semicolon เด็ดขาด)*
-* **Backend API:** **Go 1.25+** + **Fiber Framework (v2)** + **GORM (ORM)**
+* **Backend API:** **Go 1.25+** + **Fiber Framework (v2)** + **GORM (ORM)** Clean Architecture
 * **Hot Reload & Dev Engine:** **Air (v1.64+)** รองรับ Live Reload ทั้งบน Local Machine และ Docker Development (`.air.toml`, `Dockerfile.dev`, `docker-compose.dev.yml`)
 * **Database & Cache:** **PostgreSQL 17** + **Redis 7**
 * **Media & File Storage:** Local Volume Mount บน Host Machine ผ่าน Docker Mount Path (`/var/tunorth_data/uploads`) พร้อมตัวช่วยแปลง Relative Path (`getMediaUrl()`)
 * **Admin System Settings & Diagnostics:** ควบคุมข้อมูลโรงเรียน, ลายเซ็นผู้อำนวยการบนเกียรติบัตร, แถบประกาศทั่วทั้งระบบ (Banner), สวิตช์ปิดปรับปรุงระบบ (Maintenance Guard), และแดชบอร์ดตรวจสอบสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime
+* **Landing Page Management System (Landing Page CMS):** แดชบอร์ดจัดการหน้าแรกสำหรับ Admin (`/admin/landing`) รูปแบบ Card Grid Tabs 7 หมวดหมู่ (Hero, Stats, Features, Featured Courses, Steps, FAQ, CTA/Footer) พร้อมระบบจัดการรูปภาพ Hero Banner และพรีวิวแบบ Real-time บนหน้าแรก (`/`)
 * **Interactive Code Playground:** Client-Side WebAssembly (Pyodide v0.26.2 สำหรับ Python) + Monaco Code Editor รองรับการแสดงผล Console, Stderr/Stdout capture, และคำสั่ง `input()` แบบ Interactive ผ่าน `pyodide.setStdin`
 * **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมตัวนับเวลาถอยหลัง (Timer), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
 * **Certificate Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมลายเซ็นและตราประทับโรงเรียน รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape) และหน้าตรวจสอบความถูกต้องสาธารณะ (`/verify/[code]`)
@@ -48,6 +52,9 @@
 | `password_hash` | VARCHAR(255) | NOT NULL | รหัสผ่าน Hashed (Bcrypt / Argon2id) |
 | `first_name` | VARCHAR(100) | NOT NULL | ชื่อจริง |
 | `last_name` | VARCHAR(100) | NOT NULL | นามสกุล |
+| `avatar_url` | VARCHAR(500) | NULL | รูปภาพโปรไฟล์ผู้ใช้งาน |
+| `bio` | TEXT | NULL | คำแนะนำตัวสั้นๆ ประจำโปรไฟล์ |
+| `phone_number` | VARCHAR(30) | NULL | เบอร์โทรศัพท์ติดต่อ |
 | `role` | VARCHAR(20) | NOT NULL, CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN')) | บทบาทผู้ใช้งาน |
 | `grade_level` | VARCHAR(20) | NULL (เช่น 'M4', 'M5', 'M6') | ระดับชั้น (สำหรับนักเรียน) |
 | `classroom` | VARCHAR(20) | NULL (เช่น '1', '2', '3') | ห้องเรียน (เช่น ห้อง 1) |
@@ -164,11 +171,20 @@
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PRIMARY KEY | รหัสอ้างอิงการตั้งค่า |
-| `key` | VARCHAR(100) | UNIQUE, NOT NULL | คีย์ระบุการตั้งค่า (เช่น `school_name_th`, `theme_primary_color`) |
+| `key` | VARCHAR(100) | UNIQUE, NOT NULL | คีย์ระบุการตั้งค่า (เช่น `school_name_th`, `landing_hero_title`) |
 | `value` | TEXT | NOT NULL | ค่าคอนฟิก (สตริง ข้อความ หรือ JSON) |
 | `description` | TEXT | NULL | คำอธิบายหน้าที่ของคีย์การตั้งค่า |
-| `category` | VARCHAR(50) | NOT NULL DEFAULT 'GENERAL' | หมวดหมู่ (`GENERAL`, `BRANDING`, `POLICY`, `ANNOUNCEMENT`, `MAINTENANCE`) |
+| `category` | VARCHAR(50) | NOT NULL DEFAULT 'GENERAL' | หมวดหมู่ (`GENERAL`, `BRANDING`, `POLICY`, `ANNOUNCEMENT`, `MAINTENANCE`, `LANDING`) |
 | `updated_at` | TIMESTAMPTZ | Default NOW() | วันเวลาที่แก้ไขล่าสุด |
+
+##### 🌟 โครงสร้างการจัดเก็บข้อมูล Landing Page Config (Category: `LANDING`):
+* **Hero Section:** `landing_hero_badge`, `landing_hero_title`, `landing_hero_highlight`, `landing_hero_subtitle`, `landing_hero_cta_primary_text`, `landing_hero_cta_primary_link`, `landing_hero_cta_secondary_text`, `landing_hero_cta_secondary_link`, `landing_hero_image_url`
+* **Stats Bar:** `landing_stats_enabled` (bool string), `landing_stats_json` (`[{"label","value","suffix","icon"}]`)
+* **Features Grid:** `landing_features_enabled`, `landing_features_title`, `landing_features_subtitle`, `landing_features_json` (`[{"id","title","description","icon","color"}]`)
+* **Featured Courses:** `landing_courses_enabled`, `landing_courses_title`, `landing_courses_subtitle`
+* **How It Works Steps:** `landing_steps_enabled`, `landing_steps_title`, `landing_steps_subtitle`, `landing_steps_json` (`[{"step","title","desc"}]`)
+* **FAQ Accordion:** `landing_faq_enabled`, `landing_faq_title`, `landing_faq_subtitle`, `landing_faq_json` (`[{"question","answer"}]`)
+* **CTA & Footer:** `landing_cta_enabled`, `landing_cta_title`, `landing_cta_subtitle`, `landing_cta_button_text`, `landing_footer_text`
 
 #### 11. CourseCategories (ตารางหมวดหมู่รายวิชา / กลุ่มสาระการเรียนรู้)
 | Column Name | Data Type | Constraints | Description |
@@ -193,6 +209,9 @@
 | `POST` | `/api/auth/logout` | Authenticated | ออกจากระบบ เคลียร์ JWT Cookie |
 | `POST` | `/api/auth/refresh` | Authenticated | รีเฟรช Access Token อัตโนมัติ |
 | `GET` | `/api/auth/me` | Authenticated | ดึงข้อมูลผู้ใช้งานปัจจุบัน |
+| `GET` | `/api/profile` | Authenticated | ดึงข้อมูลโปรไฟล์ผู้ใช้ พร้อมสรุปสถิติส่วนบุคคลแยกตาม Role (Activity Stats) |
+| `PUT` | `/api/profile` | Authenticated | แก้ไขข้อมูลส่วนบุคคล (ชื่อ นามสกุล รูปโปรไฟล์ Bio เบอร์โทรศัพท์) |
+| `PUT` | `/api/profile/password` | Authenticated | เปลี่ยนรหัสผ่านผู้ใช้งาน โดยตรวจสอบรหัสผ่านเดิมผ่าน Bcrypt |
 | `GET` | `/api/settings/public` | Public | ดึงข้อมูลคอนฟิกสาธารณะ (ชื่อโรงเรียน, โลโก้, Favicon, ธีมสี, แถบประกาศ, สถานะ Maintenance) |
 | `POST` | `/api/upload` | Authenticated | อัปโหลดไฟล์วิดีโอ (500MB), PDF (100MB), ภาพและ Favicon (20MB) |
 | `GET` | `/api/admin/stats/users`| ADMIN | สรุปสถิติจำนวนผู้ใช้แยกตาม Role และระดับชั้น |
@@ -306,7 +325,7 @@
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
 - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
 
-### 📌 Phase 5: Admin System Settings, Branding, Governance & Modern UI
+### 📌 Phase 5: Admin System Settings, Branding, Governance & Landing Page CMS
 - [x] Implement System Settings Data Model, Seed Defaults & Batch Update API
 - [x] Build Admin System Settings Dashboard (`/admin/settings`) with 5 Dedicated Tabs (School Profile, Branding, Policy, Announcements, Diagnostics)
 - [x] Implement **Course Categories Management Engine** (`/admin/categories`) with Full CRUD, Color Presets, Drag-free Up/Down Reordering, and Graceful Uncategorized Course Protection
@@ -314,8 +333,9 @@
 - [x] Implement Enforced Maintenance Mode (Backend 503 Guard Middleware + Fullscreen Maintenance Screen + Real-time Check)
 - [x] Implement Student Self-Registration (`POST /api/auth/register` + `/register` Portal + Dynamic Policy Control)
 - [x] Implement Real-time System Health & Storage Diagnostics Engine (PostgreSQL, Redis, `./uploads` Breakdown & Go Runtime)
-- [x] Implement **Landing Page Management System (Landing Page CMS)** (`/admin/landing`) with Dynamic Sections Customizer (Hero, Stats Bar, Core Features Grid, Featured Courses Showcase, Steps Timeline, Interactive FAQ, CTA Banner, and Public API Integration)
+- [x] Implement **Landing Page Management System (Landing Page CMS)** (`/admin/landing`) with Card Grid Tabs 7 Dedicated Sections (Hero & Banner Showcase, Stats Bar, Core Features Grid, Featured Courses Showcase, Steps Timeline, Interactive FAQ Accordion, Call-to-Action Banner & School Copyright Footer) พร้อมระบบ Image Preview/Clear, Dynamic Public API Integration และ Responsive Design บนทุกอุปกรณ์ (Mobile, iPad Air, Desktop) [ดูแผนงานและ Checklist ย่อยใน docs/landing_page_management_plan.md]
 - [x] Implement **Sonner Toast Notification System** (`sonner` + `AppToaster` + `@/lib/toast`) รองรับ Dark/Light theme แบบ Reactive และกำหนดระยะเวลาแสดงผลแยกตามประเภท (Error 5s, Warning 4s, Success 3s) ทดแทน Native `alert()` ทั้งหมด
+- [x] Implement **User Profile System** (`/profile` & `/api/profile`) รองรับการดูและแก้ไขข้อมูลส่วนตัว, อัปโหลดรูปภาพ Avatar พร้อม Initials Fallback บน Navbar, เปลี่ยนรหัสผ่านปลอดภัยด้วย Bcrypt, และแสดงสถิติกิจกรรมการเรียนการสอนแบบแยกตาม Role (Student, Teacher, Admin) [ดูแผนงานและ Checklist ย่อยใน docs/user_profile_system_plan.md]
 
 ### 📌 Phase 6: Testing, Performance Hardening & Production Deployment
 - [ ] Conduct Load Testing for 150 Concurrent Active Users (Video Streaming & API Benchmark)
@@ -366,4 +386,4 @@ docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats) และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*

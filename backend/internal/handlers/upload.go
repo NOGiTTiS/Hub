@@ -151,6 +151,7 @@ func (h *UploadHandler) UploadFile(c *fiber.Ctx) error {
 		"message": "อัปโหลดไฟล์สำเร็จเรียบร้อย",
 		"data": fiber.Map{
 			"url":           publicURL,
+			"file_url":      publicURL,
 			"filename":      cleanFilename,
 			"original_name": file.Filename,
 			"size":          file.Size,

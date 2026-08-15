@@ -51,6 +51,13 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	authGroup.Post("/refresh", authHandler.RefreshToken)
 	authGroup.Get("/me", middleware.RequireAuth(cfg), authHandler.Me)
 
+	// User Profile Routes (Authenticated users)
+	profileHandler := handlers.NewProfileHandler(db)
+	profileGroup := api.Group("/profile", middleware.RequireAuth(cfg))
+	profileGroup.Get("/", profileHandler.GetProfile)
+	profileGroup.Put("/", profileHandler.UpdateProfile)
+	profileGroup.Put("/password", profileHandler.ChangePassword)
+
 	// File Upload Route (Authenticated users)
 	uploadHandler := handlers.NewUploadHandler(cfg)
 	api.Post("/upload", middleware.RequireAuth(cfg), uploadHandler.UploadFile)
