@@ -36,6 +36,7 @@ import { CodePlayground } from "@/components/code-playground"
 import { QuizPlayer } from "@/components/quiz-player"
 import { AssignmentPanel } from "@/components/assignment-panel"
 import { CertificateModal, CertificateData } from "@/components/certificate-modal"
+import { useAuth } from "@/lib/auth-context"
 
 interface Lesson {
   id: string
@@ -89,6 +90,7 @@ export default function StudentCoursePlayerPage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params?.id as string
+  const { user } = useAuth()
 
   const [playerData, setPlayerData] = useState<CoursePlayerData | null>(null)
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
@@ -102,6 +104,11 @@ export default function StudentCoursePlayerPage() {
   const [remainingStudySeconds, setRemainingStudySeconds] = useState<number>(0)
   const [nowTime, setNowTime] = useState<number>(Date.now())
   const [isWindowFocused, setIsWindowFocused] = useState<boolean>(true)
+
+  // Storage key helper for persistent study timer
+  const getStorageKey = (lessonId: string) => {
+    return `tunorth_study_time_${user?.id || "guest"}_${lessonId}`
+  }
 
   // Error & Unenroll Modal State
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -139,27 +146,46 @@ export default function StudentCoursePlayerPage() {
     }
   }, [])
 
-  // Update clock every second for countdown and study timer (study timer only decrements when window is active & focused)
+  // Update clock every second for countdown and study timer (persisting remaining seconds to localStorage)
   useEffect(() => {
     const timer = setInterval(() => {
       setNowTime(Date.now())
       if (checkIsActive()) {
-        setRemainingStudySeconds((prev) => (prev > 0 ? prev - 1 : 0))
+        setRemainingStudySeconds((prev) => {
+          if (prev <= 0) return 0
+          const next = prev - 1
+          if (activeLesson) {
+            try {
+              localStorage.setItem(getStorageKey(activeLesson.id), next.toString())
+            } catch {}
+          }
+          return next
+        })
       }
     }, 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [activeLesson?.id, user?.id])
 
-  // When activeLesson changes, reset or initialize study timer
+  // When activeLesson changes, restore saved study time from localStorage or initialize with min_study_time_seconds
   useEffect(() => {
     if (!activeLesson) return
     const isCompleted = completedLessons.includes(activeLesson.id)
     if (!isCompleted && activeLesson.min_study_time_seconds && activeLesson.min_study_time_seconds > 0) {
-      setRemainingStudySeconds(activeLesson.min_study_time_seconds)
+      let initialRemaining = activeLesson.min_study_time_seconds
+      try {
+        const saved = localStorage.getItem(getStorageKey(activeLesson.id))
+        if (saved !== null) {
+          const parsed = parseInt(saved, 10)
+          if (!isNaN(parsed) && parsed >= 0 && parsed <= activeLesson.min_study_time_seconds) {
+            initialRemaining = parsed
+          }
+        }
+      } catch {}
+      setRemainingStudySeconds(initialRemaining)
     } else {
       setRemainingStudySeconds(0)
     }
-  }, [activeLesson?.id, completedLessons])
+  }, [activeLesson?.id, completedLessons, user?.id])
 
   const handleOpenCertificate = async () => {
     setIsLoadingCert(true)
@@ -267,6 +293,12 @@ export default function StudentCoursePlayerPage() {
       ? [...completedLessons, lessonId]
       : completedLessons.filter((id) => id !== lessonId)
     setCompletedLessons(nextCompleted)
+
+    if (newStatus && lessonId) {
+      try {
+        localStorage.removeItem(getStorageKey(lessonId))
+      } catch {}
+    }
 
     const res = await apiFetch(`/api/student/courses/${courseId}/lessons/${lessonId}/progress`, {
       method: "POST",
