@@ -68,6 +68,10 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	courseHandler := handlers.NewCourseHandler(db)
 	assignmentHandler := handlers.NewAssignmentHandler(db)
 	quizHandler := handlers.NewQuizHandler(db)
+	studentCourseHandler := handlers.NewStudentCourseHandler(db)
+
+	// Public Courses Route for Landing Page
+	api.Get("/courses/public", studentCourseHandler.ListPublishedCourses)
 
 	// Admin Routes
 	adminGroup := api.Group("/admin", middleware.RequireAuth(cfg), middleware.RequireRole(models.RoleAdmin))
@@ -133,7 +137,6 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	teacherGroup.Get("/quizzes/:id/stats", quizHandler.GetQuizStats)
 
 	// Student Routes (Course Browsing, Player, Progress, Assignments, Quizzes, Certificate)
-	studentCourseHandler := handlers.NewStudentCourseHandler(db)
 	studentGroup := api.Group("/student", middleware.RequireAuth(cfg), middleware.RequireRole(models.RoleStudent))
 
 	studentGroup.Get("/courses", studentCourseHandler.ListPublishedCourses)

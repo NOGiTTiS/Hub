@@ -205,6 +205,7 @@
 | `GET` | `/api/admin/settings` | ADMIN | ดึงข้อมูลการตั้งค่าระบบทั้งหมดแยกตามหมวดหมู่ |
 | `PUT` | `/api/admin/settings` | ADMIN | บันทึกแก้ไขการตั้งค่าระบบแบบ Batch Key-Value |
 | `GET` | `/api/admin/settings/system-health` | ADMIN | รายงานผลการตรวจสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime |
+| `GET` | `/api/courses/public` | Public | ดึงรายการรายวิชาที่เปิดเผยแพร่ทั้งหมด สำหรับแสดงผลบนหน้าแรก (Landing Page Featured Courses) |
 | `GET` | `/api/categories` | Public | ดึงรายการหมวดหมู่รายวิชาทั้งหมด เรียงตาม `order_index` |
 | `POST` | `/api/admin/categories` | ADMIN | สร้างหมวดหมู่รายวิชาใหม่ (ชื่อ, คำอธิบาย, สี) |
 | `PUT` | `/api/admin/categories/:id` | ADMIN | แก้ไขข้อมูลหมวดหมู่รายวิชา |
@@ -313,6 +314,7 @@
 - [x] Implement Enforced Maintenance Mode (Backend 503 Guard Middleware + Fullscreen Maintenance Screen + Real-time Check)
 - [x] Implement Student Self-Registration (`POST /api/auth/register` + `/register` Portal + Dynamic Policy Control)
 - [x] Implement Real-time System Health & Storage Diagnostics Engine (PostgreSQL, Redis, `./uploads` Breakdown & Go Runtime)
+- [x] Implement **Landing Page Management System (Landing Page CMS)** (`/admin/landing`) with Dynamic Sections Customizer (Hero, Stats Bar, Core Features Grid, Featured Courses Showcase, Steps Timeline, Interactive FAQ, CTA Banner, and Public API Integration)
 - [x] Implement **Sonner Toast Notification System** (`sonner` + `AppToaster` + `@/lib/toast`) รองรับ Dark/Light theme แบบ Reactive และกำหนดระยะเวลาแสดงผลแยกตามประเภท (Error 5s, Warning 4s, Success 3s) ทดแทน Native `alert()` ทั้งหมด
 
 ### 📌 Phase 6: Testing, Performance Hardening & Production Deployment

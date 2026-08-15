@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
+import Link from "next/link"
 import { toast } from "@/lib/toast"
 import { apiFetch, API_BASE_URL } from "@/lib/api"
 import { User, UserRole } from "@/lib/auth-context"
@@ -25,6 +26,7 @@ import {
   ShieldCheck,
   BookOpen,
   UserCheck,
+  LayoutTemplate,
 } from "lucide-react"
 
 interface UserStats {
@@ -357,6 +359,14 @@ export default function AdminUsersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/admin/landing"
+            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:scale-95 px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+          >
+            <LayoutTemplate className="w-4 h-4 text-brand-500" />
+            จัดการหน้าแรก (Landing CMS)
+          </Link>
+
           <button
             type="button"
             onClick={() => {

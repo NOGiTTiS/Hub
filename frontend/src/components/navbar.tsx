@@ -17,6 +17,7 @@ import {
   UserCheck,
   Settings,
   Layers,
+  LayoutTemplate,
 } from "lucide-react"
 
 export function Navbar() {
@@ -83,19 +84,20 @@ export function Navbar() {
   const navLinks = [
     ...(user?.role === "ADMIN"
       ? [
-          { href: "/admin", label: "จัดการผู้ใช้งาน (User Management)", icon: Users },
-          { href: "/admin/categories", label: "จัดการหมวดหมู่วิชา (Categories)", icon: Layers },
-          { href: "/admin/settings", label: "ตั้งค่าระบบ (System Settings)", icon: Settings },
+          { href: "/admin", label: "จัดการผู้ใช้", icon: Users },
+          { href: "/admin/categories", label: "หมวดหมู่วิชา", icon: Layers },
+          { href: "/admin/landing", label: "จัดการหน้าแรก", icon: LayoutTemplate },
+          { href: "/admin/settings", label: "ตั้งค่าระบบ", icon: Settings },
         ]
       : []),
     ...(user?.role === "TEACHER"
       ? [
-          { href: "/teacher", label: "จัดการรายวิชา (Courses)", icon: BookOpen },
+          { href: "/teacher", label: "จัดการรายวิชา", icon: BookOpen },
         ]
       : []),
     ...(user?.role === "STUDENT"
       ? [
-          { href: "/student", label: "คอร์สเรียนของฉัน (My Courses)", icon: GraduationCap },
+          { href: "/student", label: "คอร์สเรียนของฉัน", icon: GraduationCap },
         ]
       : []),
   ]
@@ -104,8 +106,8 @@ export function Navbar() {
     <header className="sticky top-0 z-50 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* LOGO */}
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-3 group">
+        <div className="flex items-center gap-4 lg:gap-6">
+          <Link href="/" className="flex items-center gap-3 group shrink-0">
             {branding?.site_logo_url ? (
               <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -124,14 +126,14 @@ export function Navbar() {
               <span className="font-bold text-slate-900 dark:text-white text-base leading-tight block">
                 {branding?.platform_title || "TUNorth-Hub"}
               </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-en block">
-                {branding?.platform_subtitle || "High School LMS"}
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-en hidden xl:block line-clamp-1 max-w-[200px]">
+                {branding?.platform_subtitle || "โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ"}
               </span>
             </div>
           </Link>
 
-          {/* DESKTOP NAV LINKS */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* DESKTOP NAV LINKS (1024px+) */}
+          <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => {
               const active = pathname === link.href || pathname.startsWith(link.href + "/")
               const Icon = link.icon
@@ -139,13 +141,13 @@ export function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     active
                       ? "bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-300"
                       : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4 shrink-0" />
                   {link.label}
                 </Link>
               )
@@ -153,14 +155,14 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* RIGHT ACTIONS */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* RIGHT ACTIONS (1024px+) */}
+        <div className="hidden lg:flex items-center gap-3">
           <ThemeToggle />
 
           {user && (
-            <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800 shrink-0">
               <div className="text-right">
-                <div className="text-xs font-bold text-slate-900 dark:text-white">
+                <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 max-w-[150px]">
                   {user.first_name} {user.last_name}
                 </div>
                 <div className="flex items-center justify-end gap-1.5 mt-0.5">
@@ -190,22 +192,23 @@ export function Navbar() {
           )}
         </div>
 
-        {/* MOBILE MENU TRIGGER */}
-        <div className="flex items-center gap-2 md:hidden">
+        {/* MOBILE & TABLET (iPad Air) MENU TRIGGER */}
+        <div className="flex items-center gap-2 lg:hidden">
           <ThemeToggle showLabel={false} />
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+            aria-label="Toggle navigation menu"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* MOBILE MENU DROPDOWN */}
+      {/* MOBILE & TABLET MENU DROPDOWN */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-3">
+        <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-3">
           {user && (
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 mb-3">
               <div className="text-xs font-bold text-slate-900 dark:text-white">

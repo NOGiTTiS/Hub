@@ -56,7 +56,7 @@ func (h *SettingsHandler) GetPublicSettings(c *fiber.Ctx) error {
 		"theme_primary_color",
 	}
 
-	if err := h.db.DB.Where("key IN ?", publicKeys).Find(&settings).Error; err != nil {
+	if err := h.db.DB.Where("key IN ? OR category = ? OR key LIKE ?", publicKeys, "LANDING", "landing_%").Find(&settings).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"message": "ไม่สามารถดึงข้อมูลการตั้งค่าสาธารณะได้",
@@ -126,6 +126,8 @@ func (h *SettingsHandler) UpdateAdminSettings(c *fiber.Ctx) error {
 			category = "MAINTENANCE"
 		} else if strings.HasPrefix(k, "site_") || strings.HasPrefix(k, "theme_") {
 			category = "BRANDING"
+		} else if strings.HasPrefix(k, "landing_") {
+			category = "LANDING"
 		} else if k == "allow_student_registration" || k == "default_student_password" || k == "max_upload_size_mb" {
 			category = "POLICY"
 		}
