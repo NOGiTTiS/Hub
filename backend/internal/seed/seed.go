@@ -119,33 +119,45 @@ func SeedDatabase(db *gorm.DB) error {
 	db.Create(&module2)
 
 	// 6. Create Lessons
+	now := time.Now()
+	futureRelease := now.Add(2 * 24 * time.Hour) // opens in 2 days (for testing locked lesson)
+
 	lesson1 := models.Lesson{
-		ID:          uuid.New(),
-		ModuleID:    module1.ID,
-		Title:       "1.1 แนะนำภาษา Python และการติดตั้งสภาพแวดล้อม",
-		ContentType: models.ContentTypeVideoEmbed,
-		EmbedURL:    "https://www.youtube.com/embed/dQw4w9WgXcQ",
-		BodyText:    "ยินดีต้อนรับสู่วิชาวิทยาการคำนวณ ในบทเรียนนี้เราจะทำความเข้าใจเกี่ยวกับไวยากรณ์พื้นฐานของภาษา Python",
-		OrderIndex:  1,
+		ID:                  uuid.New(),
+		ModuleID:            module1.ID,
+		Title:               "1.1 แนะนำภาษา Python และการติดตั้งสภาพแวดล้อม",
+		ContentType:         models.ContentTypeVideoEmbed,
+		EmbedURL:            "https://www.youtube.com/embed/dQw4w9WgXcQ",
+		BodyText:            "ยินดีต้อนรับสู่วิชาวิทยาการคำนวณ ในบทเรียนนี้เราจะทำความเข้าใจเกี่ยวกับไวยากรณ์พื้นฐานของภาษา Python",
+		OrderIndex:          1,
+		DurationMinutes:     25,
+		AvailableFrom:       &now,
+		MinStudyTimeSeconds: 15, // 15 seconds for testing min study time guard
 	}
 
 	lesson2 := models.Lesson{
-		ID:          uuid.New(),
-		ModuleID:    module1.ID,
-		Title:       "1.2 การเขียนโปรแกรมแรกด้วย Interactive Code Playground",
-		ContentType: models.ContentTypeCodeLab,
-		BodyText:    "print('Hello, TUNorth-Hub!')",
-		OrderIndex:  2,
+		ID:                  uuid.New(),
+		ModuleID:            module1.ID,
+		Title:               "1.2 การเขียนโปรแกรมแรกด้วย Interactive Code Playground",
+		ContentType:         models.ContentTypeCodeLab,
+		BodyText:            "print('Hello, TUNorth-Hub!')",
+		OrderIndex:          2,
+		DurationMinutes:     30,
+		AvailableFrom:       &now,
+		MinStudyTimeSeconds: 0,
 	}
 
 	lesson3 := models.Lesson{
-		ID:          uuid.New(),
-		ModuleID:    module1.ID,
-		Title:       "1.3 เอกสารประกอบการสอน สไลด์บทที่ 1 (PDF)",
-		ContentType: models.ContentTypeSlidePDF,
-		PDFURL:      "/uploads/slides/module1-slides.pdf",
-		BodyText:    "ดาวน์โหลดหรือเปิดอ่านสไลด์ประกอบการสอนประจำสัปดาห์",
-		OrderIndex:  3,
+		ID:                  uuid.New(),
+		ModuleID:            module1.ID,
+		Title:               "1.3 เอกสารประกอบการสอน สไลด์บทที่ 1 (PDF)",
+		ContentType:         models.ContentTypeSlidePDF,
+		PDFURL:              "/uploads/slides/module1-slides.pdf",
+		BodyText:            "ดาวน์โหลดหรือเปิดอ่านสไลด์ประกอบการสอนประจำสัปดาห์",
+		OrderIndex:          3,
+		DurationMinutes:     15,
+		AvailableFrom:       &futureRelease, // Locked test lesson
+		MinStudyTimeSeconds: 0,
 	}
 	db.Create(&lesson1)
 	db.Create(&lesson2)

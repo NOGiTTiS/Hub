@@ -94,7 +94,7 @@ D:\Hub
 1. **`users`**: `id` (UUID PK), `email` (Unique), `password_hash`, `first_name`, `last_name`, `avatar_url`, `bio`, `phone_number`, `role` (`STUDENT`, `TEACHER`, `ADMIN`), `grade_level` (เช่น `M4`, `M5`, `M6`), `classroom` (เช่น `1`, `2`)
 2. **`courses`**: `id` (UUID PK), `title`, `description`, `cover_image_url`, `teacher_id` (FK -> `users`), `is_published`
 3. **`modules`**: `id` (UUID PK), `course_id` (FK -> `courses`), `title`, `order_index`
-4. **`lessons`**: `id` (UUID PK), `module_id` (FK -> `modules`), `title`, `content_type` (`VIDEO_UPLOAD`, `VIDEO_EMBED`, `SLIDE_PDF`, `CODE_LAB`, `TEXT`), `video_url`, `embed_url`, `pdf_url`, `body_text`, `order_index`
+4. **`lessons`**: `id` (UUID PK), `module_id` (FK -> `modules`), `title`, `content_type` (`VIDEO_UPLOAD`, `VIDEO_EMBED`, `SLIDE_PDF`, `CODE_LAB`, `TEXT`), `video_url`, `embed_url`, `pdf_url`, `body_text`, `order_index`, `duration_minutes`, `available_from`, `available_until`, `min_study_time_seconds`
 5. **`assignments`**: `id` (UUID PK), `lesson_id` (FK -> `lessons`), `title`, `instructions`, `max_score`, `due_date`
 6. **`submissions`**: `id` (UUID PK), `assignment_id` (FK -> `assignments`), `student_id` (FK -> `users`), `file_url`, `submitted_text`, `score`, `feedback`, `status` (`SUBMITTED`, `GRADED`)
 7. **`quizzes`**: `id` (UUID PK), `lesson_id` (FK -> `lessons`), `title`, `time_limit_minutes`, `passing_score`

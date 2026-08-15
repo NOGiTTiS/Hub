@@ -95,6 +95,10 @@
 | `pdf_url` | VARCHAR(500) | NULL | พาธไฟล์ PDF Slide |
 | `body_text` | TEXT | NULL | เนื้อหาข้อความ/คำอธิบาย/Initial Code |
 | `order_index` | INT | NOT NULL DEFAULT 0 | ลำดับการแสดงผล |
+| `duration_minutes` | INT | NOT NULL DEFAULT 0 | ระยะเวลาเรียนโดยประมาณ (นาที) |
+| `available_from` | TIMESTAMPTZ | NULL | วัน-เวลาเริ่มเปิดให้เข้าเรียน (Drip Schedule) |
+| `available_until` | TIMESTAMPTZ | NULL | วัน-เวลาสิ้นสุดการเข้าเรียน (Expiry Date) |
+| `min_study_time_seconds` | INT | NOT NULL DEFAULT 0 | เวลาศึกษาขั้นต่ำก่อนกดจบ (Anti-Skipping Timer) |
 
 #### 5. Assignments (ตารางการบ้าน)
 | Column Name | Data Type | Constraints | Description |
@@ -245,8 +249,8 @@
 | `PUT` | `/api/teacher/modules/:id` | TEACHER | แก้ไขชื่อโมดูล |
 | `DELETE`| `/api/teacher/modules/:id` | TEACHER | ลบโมดูลและบทเรียนภายใน |
 | `POST` | `/api/teacher/courses/:courseId/modules/reorder` | TEACHER | บันทึกลำดับโมดูลใหม่ (Reorder) |
-| `POST` | `/api/teacher/modules/:moduleId/lessons` | TEACHER | เพิ่มบทเรียนย่อยในโมดูล |
-| `PUT` | `/api/teacher/lessons/:id` | TEACHER | แก้ไขข้อมูลบทเรียนย่อย |
+| `POST` | `/api/teacher/modules/:moduleId/lessons` | TEACHER | เพิ่มบทเรียนย่อยในโมดูล (รองรับ `duration_minutes`, `available_from`, `available_until`, `min_study_time_seconds`) |
+| `PUT` | `/api/teacher/lessons/:id` | TEACHER | แก้ไขข้อมูลบทเรียนย่อยและกำหนดเวลา/ตารางเรียน |
 | `DELETE`| `/api/teacher/lessons/:id` | TEACHER | ลบบทเรียนย่อย |
 | `POST` | `/api/teacher/modules/:moduleId/lessons/reorder` | TEACHER | บันทึกลำดับบทเรียนใหม่ (Reorder) |
 | `GET` | `/api/teacher/courses/:id/students` | TEACHER | ดึงรายชื่อนักเรียนทั้งหมดที่ลงทะเบียนในคอร์ส พร้อมความก้าวหน้า |
@@ -277,12 +281,12 @@
 ### 3.4 การเรียนและการติดตามผล (Student API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/student/courses` | STUDENT | รายการวิชาทั้งหมดที่เปิดเผยแพร่ (Catalog) พร้อมข้อมูลหมวดหมู่ (รองรับ `?category_id=<uuid>`) |
-| `GET` | `/api/student/my-courses` | STUDENT | รายการวิชาที่ตนเองลงทะเบียนไว้ พร้อม % Progress และข้อมูลหมวดหมู่ |
+| `GET` | `/api/student/courses` | STUDENT | รายการวิชาทั้งหมดที่เปิดเผยแพร่ (Catalog) พร้อมข้อมูลหมวดหมู่และเวลารวม (`total_duration_minutes`, รองรับ `?category_id=<uuid>`) |
+| `GET` | `/api/student/my-courses` | STUDENT | รายการวิชาที่ตนเองลงทะเบียนไว้ พร้อม % Progress, ข้อมูลหมวดหมู่ และเวลารวม (`total_duration_minutes`) |
 | `POST` | `/api/student/courses/:id/enroll` | STUDENT | ลงทะเบียนเข้าเรียนในรายวิชา |
 | `DELETE`| `/api/student/courses/:id/enroll` | STUDENT | ยกเลิกการลงทะเบียน / ถอนรายวิชา (Drop Course) พร้อมรีเซ็ตความก้าวหน้า |
-| `GET` | `/api/student/courses/:id/player` | STUDENT | ดึงข้อมูลห้องเรียน สารบัญบทเรียน และสถานะการเรียน (Player Gate ป้องกันผู้ยังไม่ลงทะเบียน) |
-| `POST` | `/api/student/courses/:id/lessons/:lessonId/progress` | STUDENT | บันทึกเรียนจบ/ยกเลิก และคำนวณ % ความก้าวหน้าใหม่ |
+| `GET` | `/api/student/courses/:id/player` | STUDENT | ดึงข้อมูลห้องเรียน สารบัญบทเรียน สถานะการเรียน และประเมินการล็อคเวลา (Lock Evaluation: `is_locked`, `lock_reason` พร้อม Scrubbing เนื้อหาที่ยังไม่เปิด) |
+| `POST` | `/api/student/courses/:id/lessons/:lessonId/progress` | STUDENT | บันทึกเรียนจบ/ยกเลิก (มี Server-Side Guard ป้องกันการบันทึกข้ามเวลาหรือบทเรียนที่ล็อค) และคำนวณ % ความก้าวหน้าใหม่ |
 | `GET` | `/api/student/lessons/:lessonId/assignment` | STUDENT | ดึงข้อมูลการบ้านและสถานะการส่งงานของตนเอง |
 | `POST` | `/api/student/assignments/:id/submit` | STUDENT | ส่งการบ้าน (แนบไฟล์/พิมพ์ข้อความคำตอบ) |
 | `GET` | `/api/student/lessons/:lessonId/quiz` | STUDENT | ดึงข้อมูลแบบทดสอบ (ซ่อนเฉลย, ส่ง `can_attempt`) |
@@ -328,6 +332,7 @@
 - [x] Implement **Quiz & Question Import Engine** (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder) [ดูแผนงานใน docs/quiz_import_system_plan.md]
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
 - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
+- [x] Implement **Lesson Time & Schedule Management System** (ระบบกำหนดระยะเวลาบทเรียน, ตารางเปิด-ปิดเนื้อหา Drip Schedule, เวลาเรียนขั้นต่ำก่อนกดจบ Anti-Skipping Timer พร้อมระบบ Pause on Window Blur & Tab Hidden via Window Focus & Page Visibility API, และแสดงเวลารวมทั้งหมดของคอร์ส) [ดูแผนงานใน docs/lesson_time_system_plan.md]
 
 ### 📌 Phase 5: Admin System Settings, Branding, Governance & Landing Page CMS
 - [x] Implement System Settings Data Model, Seed Defaults & Batch Update API
@@ -401,4 +406,4 @@ docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบนำเข้าชุดข้อสอบแบบ Batch (Quiz & Question Import Engine CSV/XLSX), การปรับปรุง Modal Architecture ป้องกันข้อมูลล้นกรอบ (Responsive Frame Optimization), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats) และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบนำเข้าชุดข้อสอบแบบ Batch (Quiz & Question Import Engine CSV/XLSX), การปรับปรุง Modal Architecture ป้องกันข้อมูลล้นกรอบ (Responsive Frame Optimization), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats), ระบบแจ้งเตือน Sonner Toast แบบครบวงจร และระบบกำหนดเวลาบทเรียนแบบครบวงจร (Lesson Time & Schedule Management System, Drip Release, Expiry Date, Anti-Skipping Timer with Window Focus & Page Visibility API, and Total Course Duration)*

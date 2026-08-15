@@ -25,11 +25,12 @@ func NewStudentCourseHandler(db *database.Database) *StudentCourseHandler {
 // StudentCourseCatalogItem represents a course for students with enrollment/progress info
 type StudentCourseCatalogItem struct {
 	models.Course
-	ModulesCount    int64   `json:"modules_count"`
-	LessonsCount    int64   `json:"lessons_count"`
-	IsEnrolled      bool    `json:"is_enrolled"`
-	ProgressPercent float64 `json:"progress_percent"`
-	EnrolledAt      *time.Time `json:"enrolled_at,omitempty"`
+	ModulesCount         int64      `json:"modules_count"`
+	LessonsCount         int64      `json:"lessons_count"`
+	TotalDurationMinutes int64      `json:"total_duration_minutes"`
+	IsEnrolled           bool       `json:"is_enrolled"`
+	ProgressPercent      float64    `json:"progress_percent"`
+	EnrolledAt           *time.Time `json:"enrolled_at,omitempty"`
 }
 
 // ListPublishedCourses returns all published courses with student's enrollment status
@@ -59,12 +60,18 @@ func (h *StudentCourseHandler) ListPublishedCourses(c *fiber.Ctx) error {
 
 	results := make([]StudentCourseCatalogItem, len(courses))
 	for i, course := range courses {
-		var modCount, lessonCount int64
+		var modCount, lessonCount, totalDuration int64
 		h.db.DB.Model(&models.Module{}).Where("course_id = ?", course.ID).Count(&modCount)
 		h.db.DB.Model(&models.Lesson{}).
 			Joins("JOIN modules ON lessons.module_id = modules.id").
 			Where("modules.course_id = ?", course.ID).
 			Count(&lessonCount)
+
+		h.db.DB.Model(&models.Lesson{}).
+			Joins("JOIN modules ON lessons.module_id = modules.id").
+			Where("modules.course_id = ?", course.ID).
+			Select("COALESCE(SUM(lessons.duration_minutes), 0)").
+			Scan(&totalDuration)
 
 		var isEnrolled bool
 		var progress float64
@@ -80,12 +87,13 @@ func (h *StudentCourseHandler) ListPublishedCourses(c *fiber.Ctx) error {
 		}
 
 		results[i] = StudentCourseCatalogItem{
-			Course:          course,
-			ModulesCount:    modCount,
-			LessonsCount:    lessonCount,
-			IsEnrolled:      isEnrolled,
-			ProgressPercent: progress,
-			EnrolledAt:      enrolledAt,
+			Course:               course,
+			ModulesCount:         modCount,
+			LessonsCount:         lessonCount,
+			TotalDurationMinutes: totalDuration,
+			IsEnrolled:           isEnrolled,
+			ProgressPercent:      progress,
+			EnrolledAt:           enrolledAt,
 		}
 	}
 
@@ -117,13 +125,14 @@ func (h *StudentCourseHandler) GetMyCourses(c *fiber.Ctx) error {
 	}
 
 	type EnrolledCourseResult struct {
-		EnrollmentID     uuid.UUID      `json:"enrollment_id"`
-		Course           models.Course  `json:"course"`
-		CompletedLessons []string       `json:"completed_lessons"`
-		ProgressPercent  float64        `json:"progress_percent"`
-		EnrolledAt       time.Time      `json:"enrolled_at"`
-		ModulesCount     int64          `json:"modules_count"`
-		LessonsCount     int64          `json:"lessons_count"`
+		EnrollmentID         uuid.UUID     `json:"enrollment_id"`
+		Course               models.Course `json:"course"`
+		CompletedLessons     []string      `json:"completed_lessons"`
+		ProgressPercent      float64       `json:"progress_percent"`
+		EnrolledAt           time.Time     `json:"enrolled_at"`
+		ModulesCount         int64         `json:"modules_count"`
+		LessonsCount         int64         `json:"lessons_count"`
+		TotalDurationMinutes int64         `json:"total_duration_minutes"`
 	}
 
 	results := make([]EnrolledCourseResult, 0, len(enrollments))
@@ -131,24 +140,31 @@ func (h *StudentCourseHandler) GetMyCourses(c *fiber.Ctx) error {
 		if e.Course == nil {
 			continue
 		}
-		var modCount, lessonCount int64
+		var modCount, lessonCount, totalDuration int64
 		h.db.DB.Model(&models.Module{}).Where("course_id = ?", e.CourseID).Count(&modCount)
 		h.db.DB.Model(&models.Lesson{}).
 			Joins("JOIN modules ON lessons.module_id = modules.id").
 			Where("modules.course_id = ?", e.CourseID).
 			Count(&lessonCount)
 
+		h.db.DB.Model(&models.Lesson{}).
+			Joins("JOIN modules ON lessons.module_id = modules.id").
+			Where("modules.course_id = ?", e.CourseID).
+			Select("COALESCE(SUM(lessons.duration_minutes), 0)").
+			Scan(&totalDuration)
+
 		var completed []string
 		_ = json.Unmarshal([]byte(e.CompletedLessons), &completed)
 
 		results = append(results, EnrolledCourseResult{
-			EnrollmentID:     e.ID,
-			Course:           *e.Course,
-			CompletedLessons: completed,
-			ProgressPercent:  e.ProgressPercent,
-			EnrolledAt:       e.EnrolledAt,
-			ModulesCount:     modCount,
-			LessonsCount:     lessonCount,
+			EnrollmentID:         e.ID,
+			Course:               *e.Course,
+			CompletedLessons:     completed,
+			ProgressPercent:      e.ProgressPercent,
+			EnrolledAt:           e.EnrolledAt,
+			ModulesCount:         modCount,
+			LessonsCount:         lessonCount,
+			TotalDurationMinutes: totalDuration,
 		})
 	}
 
@@ -269,7 +285,48 @@ func (h *StudentCourseHandler) UnenrollCourse(c *fiber.Ctx) error {
 	})
 }
 
-// GetCoursePlayer returns full course data for the Course Player
+type PlayerLessonDTO struct {
+	ID                  uuid.UUID           `json:"id"`
+	ModuleID            uuid.UUID           `json:"module_id"`
+	Title               string              `json:"title"`
+	ContentType         models.ContentType  `json:"content_type"`
+	VideoURL            string              `json:"video_url,omitempty"`
+	EmbedURL            string              `json:"embed_url,omitempty"`
+	PDFURL              string              `json:"pdf_url,omitempty"`
+	BodyText            string              `json:"body_text,omitempty"`
+	OrderIndex          int                 `json:"order_index"`
+	DurationMinutes     int                 `json:"duration_minutes"`
+	AvailableFrom       *time.Time          `json:"available_from,omitempty"`
+	AvailableUntil      *time.Time          `json:"available_until,omitempty"`
+	MinStudyTimeSeconds int                 `json:"min_study_time_seconds"`
+	IsLocked            bool                `json:"is_locked"`
+	LockReason          string              `json:"lock_reason,omitempty"`
+	Assignments         []models.Assignment `json:"assignments,omitempty"`
+	Quizzes             []models.Quiz       `json:"quizzes,omitempty"`
+}
+
+type PlayerModuleDTO struct {
+	ID         uuid.UUID         `json:"id"`
+	CourseID   uuid.UUID         `json:"course_id"`
+	Title      string            `json:"title"`
+	OrderIndex int               `json:"order_index"`
+	Lessons    []PlayerLessonDTO `json:"lessons"`
+}
+
+type PlayerCourseDTO struct {
+	ID                   uuid.UUID              `json:"id"`
+	Title                string                 `json:"title"`
+	Description          string                 `json:"description"`
+	CoverImageURL        string                 `json:"cover_image_url"`
+	Teacher              *models.User           `json:"teacher,omitempty"`
+	CategoryID           *uuid.UUID             `json:"category_id,omitempty"`
+	Category             *models.CourseCategory `json:"category,omitempty"`
+	IsPublished          bool                   `json:"is_published"`
+	TotalDurationMinutes int64                  `json:"total_duration_minutes"`
+	Modules              []PlayerModuleDTO      `json:"modules"`
+}
+
+// GetCoursePlayer returns full course data for the Course Player with lock evaluation
 func (h *StudentCourseHandler) GetCoursePlayer(c *fiber.Ctx) error {
 	claims := middleware.GetCurrentUser(c)
 	if claims == nil {
@@ -299,6 +356,7 @@ func (h *StudentCourseHandler) GetCoursePlayer(c *fiber.Ctx) error {
 	// Fetch full Course structure
 	var course models.Course
 	if err := h.db.DB.Preload("Teacher").
+		Preload("Category").
 		Preload("Modules", func(db *gorm.DB) *gorm.DB {
 			return db.Order("modules.order_index ASC")
 		}).
@@ -315,6 +373,73 @@ func (h *StudentCourseHandler) GetCoursePlayer(c *fiber.Ctx) error {
 		})
 	}
 
+	now := time.Now()
+	var totalDuration int64
+	playerModules := make([]PlayerModuleDTO, len(course.Modules))
+
+	for mIdx, mod := range course.Modules {
+		playerLessons := make([]PlayerLessonDTO, len(mod.Lessons))
+		for lIdx, l := range mod.Lessons {
+			totalDuration += int64(l.DurationMinutes)
+			var isLocked bool
+			var lockReason string
+
+			if l.AvailableFrom != nil && now.Before(*l.AvailableFrom) {
+				isLocked = true
+				lockReason = "NOT_YET_AVAILABLE"
+			} else if l.AvailableUntil != nil && now.After(*l.AvailableUntil) {
+				isLocked = true
+				lockReason = "EXPIRED"
+			}
+
+			pLesson := PlayerLessonDTO{
+				ID:                  l.ID,
+				ModuleID:            l.ModuleID,
+				Title:               l.Title,
+				ContentType:         l.ContentType,
+				OrderIndex:          l.OrderIndex,
+				DurationMinutes:     l.DurationMinutes,
+				AvailableFrom:       l.AvailableFrom,
+				AvailableUntil:      l.AvailableUntil,
+				MinStudyTimeSeconds: l.MinStudyTimeSeconds,
+				IsLocked:            isLocked,
+				LockReason:          lockReason,
+			}
+
+			// If not locked, include content and assignments/quizzes
+			if !isLocked {
+				pLesson.VideoURL = l.VideoURL
+				pLesson.EmbedURL = l.EmbedURL
+				pLesson.PDFURL = l.PDFURL
+				pLesson.BodyText = l.BodyText
+				pLesson.Assignments = l.Assignments
+				pLesson.Quizzes = l.Quizzes
+			}
+
+			playerLessons[lIdx] = pLesson
+		}
+		playerModules[mIdx] = PlayerModuleDTO{
+			ID:         mod.ID,
+			CourseID:   mod.CourseID,
+			Title:      mod.Title,
+			OrderIndex: mod.OrderIndex,
+			Lessons:    playerLessons,
+		}
+	}
+
+	playerCourse := PlayerCourseDTO{
+		ID:                   course.ID,
+		Title:                course.Title,
+		Description:          course.Description,
+		CoverImageURL:        course.CoverImageURL,
+		Teacher:              course.Teacher,
+		CategoryID:           course.CategoryID,
+		Category:             course.Category,
+		IsPublished:          course.IsPublished,
+		TotalDurationMinutes: totalDuration,
+		Modules:              playerModules,
+	}
+
 	var completedLessonIDs []string
 	if err := json.Unmarshal([]byte(enrollment.CompletedLessons), &completedLessonIDs); err != nil {
 		completedLessonIDs = []string{}
@@ -323,7 +448,7 @@ func (h *StudentCourseHandler) GetCoursePlayer(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data": fiber.Map{
-			"course":            course,
+			"course":            playerCourse,
 			"enrollment":        enrollment,
 			"completed_lessons": completedLessonIDs,
 			"progress_percent":  enrollment.ProgressPercent,
@@ -365,6 +490,33 @@ func (h *StudentCourseHandler) UpdateLessonProgress(c *fiber.Ctx) error {
 	var req UpdateProgressRequest
 	if err := c.BodyParser(&req); err != nil {
 		req.Completed = true
+	}
+
+	// Check lesson existence and lock status
+	var lesson models.Lesson
+	if err := h.db.DB.Joins("JOIN modules ON lessons.module_id = modules.id").
+		Where("lessons.id = ? AND modules.course_id = ?", lessonID, courseID).
+		First(&lesson).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบบทเรียนนี้ในรายวิชา",
+		})
+	}
+
+	now := time.Now()
+	if req.Completed {
+		if lesson.AvailableFrom != nil && now.Before(*lesson.AvailableFrom) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"message": "บทเรียนนี้ยังไม่เปิดให้เข้าเรียน ไม่สามารถบันทึกเรียนจบได้",
+			})
+		}
+		if lesson.AvailableUntil != nil && now.After(*lesson.AvailableUntil) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"message": "บทเรียนนี้หมดเวลาเข้าเรียนแล้ว ไม่สามารถบันทึกเรียนจบได้",
+			})
+		}
 	}
 
 	// Find or create enrollment

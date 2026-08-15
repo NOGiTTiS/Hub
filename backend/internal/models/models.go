@@ -130,8 +130,12 @@ type Lesson struct {
 	VideoURL    string      `gorm:"type:varchar(500)" json:"video_url,omitempty"`
 	EmbedURL    string      `gorm:"type:varchar(500)" json:"embed_url,omitempty"`
 	PDFURL      string      `gorm:"type:varchar(500)" json:"pdf_url,omitempty"`
-	BodyText    string      `gorm:"type:text" json:"body_text,omitempty"`
-	OrderIndex  int         `gorm:"not null;default:0" json:"order_index"`
+	BodyText            string      `gorm:"type:text" json:"body_text,omitempty"`
+	OrderIndex          int         `gorm:"not null;default:0" json:"order_index"`
+	DurationMinutes     int         `gorm:"not null;default:0" json:"duration_minutes"`
+	AvailableFrom       *time.Time  `gorm:"type:timestamptz" json:"available_from,omitempty"`
+	AvailableUntil      *time.Time  `gorm:"type:timestamptz" json:"available_until,omitempty"`
+	MinStudyTimeSeconds int         `gorm:"not null;default:0" json:"min_study_time_seconds"`
 
 	Assignments []Assignment `gorm:"foreignKey:LessonID;constraint:OnDelete:CASCADE" json:"assignments,omitempty"`
 	Quizzes     []Quiz       `gorm:"foreignKey:LessonID;constraint:OnDelete:CASCADE" json:"quizzes,omitempty"`

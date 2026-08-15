@@ -48,6 +48,7 @@ interface CourseCatalogItem {
   }
   modules_count: number
   lessons_count: number
+  total_duration_minutes?: number
   is_enrolled: boolean
   progress_percent: number
 }
@@ -71,6 +72,7 @@ interface MyEnrolledCourse {
   enrolled_at: string
   modules_count: number
   lessons_count: number
+  total_duration_minutes?: number
 }
 
 export default function StudentDashboardPage() {
@@ -87,6 +89,15 @@ export default function StudentDashboardPage() {
   const [showCertModal, setShowCertModal] = useState(false)
   const [certData, setCertData] = useState<CertificateData | null>(null)
   const [loadingCertId, setLoadingCertId] = useState<string | null>(null)
+
+  const formatCourseDuration = (minutes?: number) => {
+    if (!minutes || minutes <= 0) return null
+    const hrs = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hrs > 0 && mins > 0) return `${hrs} ชม. ${mins} นาที`
+    if (hrs > 0) return `${hrs} ชั่วโมง`
+    return `${mins} นาที`
+  }
 
   const handleOpenCertificate = async (courseId: string) => {
     setLoadingCertId(courseId)
@@ -326,8 +337,14 @@ export default function StudentDashboardPage() {
                         style={{ width: `${item.progress_percent}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[11px] text-slate-400 font-semibold">
+                    <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-semibold gap-1">
                       <span>เรียนแล้ว {item.completed_lessons?.length || 0} / {item.lessons_count} บท</span>
+                      {formatCourseDuration(item.total_duration_minutes) && (
+                        <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                          <Clock className="w-3 h-3 text-amber-500" />
+                          {formatCourseDuration(item.total_duration_minutes)}
+                        </span>
+                      )}
                       {item.progress_percent === 100 && (
                         <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                           🎉 เรียนครบ 100% แล้ว
@@ -455,18 +472,19 @@ export default function StudentDashboardPage() {
           </div>
         )}
 
+        {/* Catalog Grid */}
         {isLoading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+          <div className="py-20 flex flex-col items-center justify-center text-slate-400">
             <Loader2 className="w-8 h-8 animate-spin text-brand-600 mb-2" />
-            <p className="text-xs">กำลังโหลดรายการวิชา...</p>
+            <p className="text-xs font-semibold">กำลังโหลดรายวิชาทั้งหมด...</p>
           </div>
         ) : catalog.length === 0 ? (
-          <div className="py-16 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center p-6 space-y-2">
-            <BookOpen className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto" />
-            <h3 className="font-bold text-slate-800 dark:text-slate-200">ยังไม่มีรายวิชาที่เปิดสอน</h3>
-            <p className="text-xs text-slate-500">
-              เมื่อคุณครูเปิดเผยแพร่คอร์ส รายวิชาจะปรากฏให้เข้าเรียนที่นี่
-            </p>
+          <div className="py-16 text-center space-y-3 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-6">
+            <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
+            <div className="space-y-1">
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">ยังไม่มีรายวิชาที่เปิดสอน</h3>
+              <p className="text-xs text-slate-400">เมื่อครูผู้สอนเผยแพร่วิชา รายชื่อจะแสดงขึ้นที่นี่</p>
+            </div>
           </div>
         ) : (
           (() => {
@@ -547,7 +565,7 @@ export default function StudentDashboardPage() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                      <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex-wrap">
                         <span className="flex items-center gap-1">
                           <Layers className="w-3.5 h-3.5 text-brand-500" />
                           {course.modules_count} โมดูล
@@ -556,6 +574,12 @@ export default function StudentDashboardPage() {
                           <FileText className="w-3.5 h-3.5 text-indigo-500" />
                           {course.lessons_count} บทเรียน
                         </span>
+                        {formatCourseDuration(course.total_duration_minutes) && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-500" />
+                            {formatCourseDuration(course.total_duration_minutes)}
+                          </span>
+                        )}
                       </div>
                     </div>
 

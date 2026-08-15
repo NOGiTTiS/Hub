@@ -25,6 +25,10 @@ import {
   BookOpen,
   UserMinus,
   AlertTriangle,
+  Clock,
+  Lock,
+  Calendar,
+  ShieldAlert,
 } from "lucide-react"
 import { VideoPlayer } from "@/components/video-player"
 import { PDFViewer } from "@/components/pdf-viewer"
@@ -43,6 +47,12 @@ interface Lesson {
   pdf_url?: string
   body_text?: string
   order_index: number
+  duration_minutes?: number
+  available_from?: string | null
+  available_until?: string | null
+  min_study_time_seconds?: number
+  is_locked?: boolean
+  lock_reason?: string | null
 }
 
 interface Module {
@@ -59,6 +69,7 @@ interface CoursePlayerData {
     title: string
     description: string
     cover_image_url: string
+    total_duration_minutes?: number
     teacher?: {
       first_name: string
       last_name: string
@@ -87,6 +98,11 @@ export default function StudentCoursePlayerPage() {
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
+  // Timing states
+  const [remainingStudySeconds, setRemainingStudySeconds] = useState<number>(0)
+  const [nowTime, setNowTime] = useState<number>(Date.now())
+  const [isWindowFocused, setIsWindowFocused] = useState<boolean>(true)
+
   // Error & Unenroll Modal State
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showUnenrollModal, setShowUnenrollModal] = useState(false)
@@ -96,6 +112,54 @@ export default function StudentCoursePlayerPage() {
   const [showCertModal, setShowCertModal] = useState(false)
   const [certData, setCertData] = useState<CertificateData | null>(null)
   const [isLoadingCert, setIsLoadingCert] = useState(false)
+
+  // Check if window is visible and currently focused
+  const checkIsActive = () => {
+    const isVisible = typeof document !== "undefined" && document.visibilityState === "visible"
+    const hasFocus = typeof document !== "undefined" && typeof document.hasFocus === "function" ? document.hasFocus() : true
+    return isVisible && hasFocus
+  }
+
+  // Listen to browser tab visibility and window focus/blur changes
+  useEffect(() => {
+    const updateActiveState = () => {
+      setIsWindowFocused(checkIsActive())
+    }
+
+    updateActiveState()
+
+    window.addEventListener("focus", updateActiveState)
+    window.addEventListener("blur", updateActiveState)
+    document.addEventListener("visibilitychange", updateActiveState)
+
+    return () => {
+      window.removeEventListener("focus", updateActiveState)
+      window.removeEventListener("blur", updateActiveState)
+      document.removeEventListener("visibilitychange", updateActiveState)
+    }
+  }, [])
+
+  // Update clock every second for countdown and study timer (study timer only decrements when window is active & focused)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTime(Date.now())
+      if (checkIsActive()) {
+        setRemainingStudySeconds((prev) => (prev > 0 ? prev - 1 : 0))
+      }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // When activeLesson changes, reset or initialize study timer
+  useEffect(() => {
+    if (!activeLesson) return
+    const isCompleted = completedLessons.includes(activeLesson.id)
+    if (!isCompleted && activeLesson.min_study_time_seconds && activeLesson.min_study_time_seconds > 0) {
+      setRemainingStudySeconds(activeLesson.min_study_time_seconds)
+    } else {
+      setRemainingStudySeconds(0)
+    }
+  }, [activeLesson?.id, completedLessons])
 
   const handleOpenCertificate = async () => {
     setIsLoadingCert(true)
@@ -162,6 +226,31 @@ export default function StudentCoursePlayerPage() {
   const allLessons =
     playerData?.course.modules?.flatMap((m) => m.lessons || []) || []
   const currentLessonIndex = allLessons.findIndex((l) => l.id === activeLesson?.id)
+
+  const formatCountdown = (targetDateStr?: string | null) => {
+    if (!targetDateStr) return ""
+    const target = new Date(targetDateStr).getTime()
+    const diff = Math.max(0, Math.floor((target - nowTime) / 1000))
+    if (diff <= 0) return "พร้อมเปิดให้เรียนแล้ว กรุณารีเฟรชหน้าเว็บ"
+
+    const days = Math.floor(diff / 86400)
+    const hours = Math.floor((diff % 86400) / 3600)
+    const minutes = Math.floor((diff % 3600) / 60)
+    const seconds = diff % 60
+
+    const parts = []
+    if (days > 0) parts.push(`${days} วัน`)
+    if (hours > 0 || days > 0) parts.push(`${hours} ชม.`)
+    parts.push(`${minutes} นาที`)
+    parts.push(`${seconds} วินาที`)
+    return parts.join(" ")
+  }
+
+  const formatSeconds = (sec: number) => {
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  }
 
   const handleSelectLesson = (lesson: Lesson) => {
     setActiveLesson(lesson)
@@ -342,131 +431,243 @@ export default function StudentCoursePlayerPage() {
         {/* PLAYER CANVAS (COL 1-8) */}
         <div className="lg:col-span-8 space-y-6">
           {activeLesson ? (
-            <>
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-sm space-y-6">
-              {/* LESSON HEADER */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                  <span className="text-xs font-semibold text-slate-400">
-                    บทเรียนที่ {currentLessonIndex + 1} จาก {allLessons.length}
-                  </span>
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-0.5">
-                    {activeLesson.title}
-                  </h2>
+            activeLesson.is_locked ? (
+              /* LOCKED OR EXPIRED LESSON SCREEN */
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-sm">
+                {activeLesson.lock_reason === "EXPIRED" ? (
+                  <>
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+                      <Calendar className="w-8 h-8 sm:w-10 sm:h-10" />
+                    </div>
+
+                    <div className="space-y-2 max-w-md mx-auto">
+                      <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 px-3 py-1 bg-rose-50 dark:bg-rose-950/80 rounded-full border border-rose-200 dark:border-rose-900 inline-block">
+                        หมดเขตระยะเวลาเข้าเรียน
+                      </span>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white pt-1">
+                        {activeLesson.title}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                        บทเรียนนี้ได้หมดเขตระยะเวลาการเข้าเรียนแล้วเมื่อวันที่{" "}
+                        <span className="font-bold text-slate-700 dark:text-slate-200">
+                          {activeLesson.available_until ? new Date(activeLesson.available_until).toLocaleString("th-TH") : "-"}
+                        </span>
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+                      <Lock className="w-8 h-8 sm:w-10 sm:h-10" />
+                    </div>
+
+                    <div className="space-y-2 max-w-md mx-auto">
+                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 px-3 py-1 bg-amber-50 dark:bg-amber-950/80 rounded-full border border-amber-200 dark:border-amber-900 inline-block">
+                        ยังไม่ถึงกำหนดเวลาเปิดเข้าเรียน
+                      </span>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white pt-1">
+                        {activeLesson.title}
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                        บทเรียนนี้จะเปิดให้นักเรียนเข้าเรียนตามตารางสอนในวันที่{" "}
+                        <span className="font-bold text-slate-700 dark:text-slate-200">
+                          {activeLesson.available_from ? new Date(activeLesson.available_from).toLocaleString("th-TH") : "-"}
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* COUNTDOWN BOX */}
+                    <div className="max-w-md mx-auto p-5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 space-y-2">
+                      <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-center gap-1.5">
+                        <Clock className="w-4 h-4" />
+                        นับเวลาถอยหลังเปิดเข้าเรียน:
+                      </div>
+                      <div className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+                        {formatCountdown(activeLesson.available_from)}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* PREV / NEXT NAVIGATION */}
+                <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800 max-w-md mx-auto">
+                  <button
+                    type="button"
+                    disabled={currentLessonIndex <= 0}
+                    onClick={handlePrevLesson}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    บทเรียนก่อนหน้า
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={currentLessonIndex >= allLessons.length - 1}
+                    onClick={handleNextLesson}
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition shadow disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    บทเรียนถัดไป
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
+              </div>
+            ) : (
+              /* UNLOCKED ACTIVE LESSON CONTENT */
+              <>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-sm space-y-6">
+                  {/* LESSON HEADER */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap text-xs font-semibold text-slate-400">
+                        <span>บทเรียนที่ {currentLessonIndex + 1} จาก {allLessons.length}</span>
+                        {activeLesson.duration_minutes !== undefined && activeLesson.duration_minutes > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[10px]">
+                            <Clock className="w-3 h-3 text-brand-500" />
+                            {activeLesson.duration_minutes} นาที
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">
+                        {activeLesson.title}
+                      </h2>
+                    </div>
 
-                {/* MARK COMPLETED BUTTON */}
-                <button
-                  type="button"
-                  disabled={isUpdatingProgress}
-                  onClick={() =>
-                    handleToggleLessonComplete(activeLesson.id, isCurrentLessonCompleted)
-                  }
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-sm shrink-0 ${
-                    isCurrentLessonCompleted
-                      ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                      : "bg-brand-600 text-white hover:bg-brand-500"
-                  }`}
-                >
-                  {isUpdatingProgress ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isCurrentLessonCompleted ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <Circle className="w-4 h-4" />
+                    {/* MARK COMPLETED BUTTON & ANTI-SKIPPING TIMER */}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isUpdatingProgress || (!isCurrentLessonCompleted && remainingStudySeconds > 0)}
+                        onClick={() =>
+                          handleToggleLessonComplete(activeLesson.id, isCurrentLessonCompleted)
+                        }
+                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-sm ${
+                          isCurrentLessonCompleted
+                            ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                            : remainingStudySeconds > 0
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed border border-slate-200 dark:border-slate-700"
+                            : "bg-brand-600 text-white hover:bg-brand-500"
+                        }`}
+                      >
+                        {isUpdatingProgress ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : isCurrentLessonCompleted ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : !isWindowFocused && remainingStudySeconds > 0 ? (
+                          <Clock className="w-4 h-4 text-amber-500" />
+                        ) : remainingStudySeconds > 0 ? (
+                          <Clock className="w-4 h-4 animate-pulse text-amber-500" />
+                        ) : (
+                          <Circle className="w-4 h-4" />
+                        )}
+
+                        {isCurrentLessonCompleted
+                          ? "✓ เรียนจบแล้ว (กดเพื่อยกเลิก)"
+                          : !isWindowFocused && remainingStudySeconds > 0
+                          ? `⏸️ หยุดเวลาชั่วคราว (${formatSeconds(remainingStudySeconds)})`
+                          : remainingStudySeconds > 0
+                          ? `⏱️ ศึกษาอีก ${formatSeconds(remainingStudySeconds)} นาที`
+                          : "ทำเครื่องหมายว่าเรียนจบแล้ว"}
+                      </button>
+
+                      {!isCurrentLessonCompleted && remainingStudySeconds > 0 && (
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <ShieldAlert className="w-3 h-3 text-indigo-500" />
+                          {!isWindowFocused ? "หยุดนับเวลาชั่วคราว (กรุณาคลิกในหน้านี้เพื่อเรียนต่อ)" : `ต้องศึกษาอย่างน้อย ${activeLesson.min_study_time_seconds} วินาที`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* MEDIA RENDERER */}
+                  <div>
+                    {activeLesson.content_type === "VIDEO_EMBED" && (
+                      <VideoPlayer
+                        type="embed"
+                        src={activeLesson.embed_url || ""}
+                        title={activeLesson.title}
+                        onComplete={() => {
+                          if (!isCurrentLessonCompleted && remainingStudySeconds <= 0) {
+                            handleToggleLessonComplete(activeLesson.id, false)
+                          }
+                        }}
+                      />
+                    )}
+
+                    {activeLesson.content_type === "VIDEO_UPLOAD" && (
+                      <VideoPlayer
+                        type="direct"
+                        src={activeLesson.video_url || ""}
+                        title={activeLesson.title}
+                        onComplete={() => {
+                          if (!isCurrentLessonCompleted && remainingStudySeconds <= 0) {
+                            handleToggleLessonComplete(activeLesson.id, false)
+                          }
+                        }}
+                      />
+                    )}
+
+                    {activeLesson.content_type === "SLIDE_PDF" && (
+                      <PDFViewer src={activeLesson.pdf_url || ""} title={activeLesson.title} />
+                    )}
+
+                    {activeLesson.content_type === "CODE_LAB" && (
+                      <CodePlayground
+                        title={`Interactive Code Lab: ${activeLesson.title}`}
+                        initialCode={activeLesson.body_text || undefined}
+                      />
+                    )}
+                  </div>
+
+                  {/* LESSON BODY TEXT (IF ANY) */}
+                  {activeLesson.body_text && activeLesson.content_type !== "CODE_LAB" && (
+                    <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        คำอธิบายและเนื้อหาบทเรียน
+                      </h3>
+                      <div className="p-5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                        {activeLesson.body_text}
+                      </div>
+                    </div>
                   )}
-                  {isCurrentLessonCompleted ? "✓ เรียนจบแล้ว (กดเพื่อยกเลิก)" : "ทำเครื่องหมายว่าเรียนจบแล้ว"}
-                </button>
-              </div>
 
-              {/* MEDIA RENDERER */}
-              <div>
-                {activeLesson.content_type === "VIDEO_EMBED" && (
-                  <VideoPlayer
-                    type="embed"
-                    src={activeLesson.embed_url || ""}
-                    title={activeLesson.title}
-                    onComplete={() => {
-                      if (!isCurrentLessonCompleted) {
-                        handleToggleLessonComplete(activeLesson.id, false)
-                      }
-                    }}
-                  />
-                )}
+                  {/* PREV / NEXT NAVIGATION */}
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      disabled={currentLessonIndex <= 0}
+                      onClick={handlePrevLesson}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      บทเรียนก่อนหน้า
+                    </button>
 
-                {activeLesson.content_type === "VIDEO_UPLOAD" && (
-                  <VideoPlayer
-                    type="direct"
-                    src={activeLesson.video_url || ""}
-                    title={activeLesson.title}
-                    onComplete={() => {
-                      if (!isCurrentLessonCompleted) {
-                        handleToggleLessonComplete(activeLesson.id, false)
-                      }
-                    }}
-                  />
-                )}
-
-                {activeLesson.content_type === "SLIDE_PDF" && (
-                  <PDFViewer src={activeLesson.pdf_url || ""} title={activeLesson.title} />
-                )}
-
-                {activeLesson.content_type === "CODE_LAB" && (
-                  <CodePlayground
-                    title={`Interactive Code Lab: ${activeLesson.title}`}
-                    initialCode={activeLesson.body_text || undefined}
-                  />
-                )}
-              </div>
-
-              {/* LESSON BODY TEXT (IF ANY) */}
-              {activeLesson.body_text && activeLesson.content_type !== "CODE_LAB" && (
-                <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    คำอธิบายและเนื้อหาบทเรียน
-                  </h3>
-                  <div className="p-5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-                    {activeLesson.body_text}
+                    <button
+                      type="button"
+                      disabled={currentLessonIndex >= allLessons.length - 1}
+                      onClick={handleNextLesson}
+                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition shadow disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      บทเรียนถัดไป
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* PREV / NEXT NAVIGATION */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  disabled={currentLessonIndex <= 0}
-                  onClick={handlePrevLesson}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition disabled:opacity-30 disabled:pointer-events-none"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  บทเรียนก่อนหน้า
-                </button>
-
-                <button
-                  type="button"
-                  disabled={currentLessonIndex >= allLessons.length - 1}
-                  onClick={handleNextLesson}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition shadow disabled:opacity-30 disabled:pointer-events-none"
-                >
-                  บทเรียนถัดไป
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* INTERACTIVE QUIZ & ASSIGNMENT ATTACHMENTS FOR ACTIVE LESSON */}
-            <div className="space-y-6">
-              <QuizPlayer
-                lessonId={activeLesson.id}
-                onQuizCompleted={() => fetchPlayerData()}
-              />
-              <AssignmentPanel
-                lessonId={activeLesson.id}
-                onSubmissionSuccess={() => fetchPlayerData()}
-              />
-            </div>
-          </>
+                {/* INTERACTIVE QUIZ & ASSIGNMENT ATTACHMENTS FOR ACTIVE LESSON */}
+                <div className="space-y-6">
+                  <QuizPlayer
+                    lessonId={activeLesson.id}
+                    onQuizCompleted={() => fetchPlayerData()}
+                  />
+                  <AssignmentPanel
+                    lessonId={activeLesson.id}
+                    onSubmissionSuccess={() => fetchPlayerData()}
+                  />
+                </div>
+              </>
+            )
           ) : (
             <div className="p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-center space-y-3">
               <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto" />
@@ -527,31 +728,55 @@ export default function StudentCoursePlayerPage() {
                         className={`w-full text-left p-2.5 rounded-xl transition flex items-center justify-between gap-2 text-xs ${
                           isActive
                             ? "bg-brand-600 text-white font-bold shadow-sm"
+                            : lesson.is_locked
+                            ? "bg-slate-50/60 dark:bg-slate-950/40 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80"
                             : isCompleted
                             ? "bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                             : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : "text-brand-500"}`} />
+                          <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : lesson.is_locked ? "text-slate-400" : "text-brand-500"}`} />
                           <span className="truncate">
                             {modIdx + 1}.{lIdx + 1} {lesson.title}
                           </span>
                         </div>
 
-                        {isCompleted ? (
-                          <CheckCircle2
-                            className={`w-4 h-4 shrink-0 ${
-                              isActive ? "text-white" : "text-emerald-500"
-                            }`}
-                          />
-                        ) : (
-                          <Circle
-                            className={`w-3.5 h-3.5 shrink-0 opacity-30 ${
-                              isActive ? "text-white" : ""
-                            }`}
-                          />
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {lesson.duration_minutes !== undefined && lesson.duration_minutes > 0 && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                              isActive
+                                ? "bg-brand-700 text-white"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            }`}>
+                              {lesson.duration_minutes}น.
+                            </span>
+                          )}
+
+                          {lesson.is_locked ? (
+                            <Lock
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isActive
+                                  ? "text-amber-200"
+                                  : lesson.lock_reason === "EXPIRED"
+                                  ? "text-rose-500"
+                                  : "text-amber-500"
+                              }`}
+                            />
+                          ) : isCompleted ? (
+                            <CheckCircle2
+                              className={`w-4 h-4 shrink-0 ${
+                                isActive ? "text-white" : "text-emerald-500"
+                              }`}
+                            />
+                          ) : (
+                            <Circle
+                              className={`w-3.5 h-3.5 shrink-0 opacity-30 ${
+                                isActive ? "text-white" : ""
+                              }`}
+                            />
+                          )}
+                        </div>
                       </button>
                     )
                   })}

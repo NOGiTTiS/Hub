@@ -474,12 +474,16 @@ func (h *CourseHandler) ReorderModules(c *fiber.Ctx) error {
 // --- LESSON HANDLERS ---
 
 type UpsertLessonRequest struct {
-	Title       string             `json:"title"`
-	ContentType models.ContentType `json:"content_type"`
-	VideoURL    string             `json:"video_url"`
-	EmbedURL    string             `json:"embed_url"`
-	PDFURL      string             `json:"pdf_url"`
-	BodyText    string             `json:"body_text"`
+	Title               string             `json:"title"`
+	ContentType         models.ContentType `json:"content_type"`
+	VideoURL            string             `json:"video_url"`
+	EmbedURL            string             `json:"embed_url"`
+	PDFURL              string             `json:"pdf_url"`
+	BodyText            string             `json:"body_text"`
+	DurationMinutes     int                `json:"duration_minutes"`
+	AvailableFrom       *time.Time         `json:"available_from"`
+	AvailableUntil      *time.Time         `json:"available_until"`
+	MinStudyTimeSeconds int                `json:"min_study_time_seconds"`
 }
 
 func (h *CourseHandler) CreateLesson(c *fiber.Ctx) error {
@@ -503,19 +507,39 @@ func (h *CourseHandler) CreateLesson(c *fiber.Ctx) error {
 		req.ContentType = models.ContentTypeText
 	}
 
+	if req.DurationMinutes < 0 {
+		req.DurationMinutes = 0
+	}
+	if req.MinStudyTimeSeconds < 0 {
+		req.MinStudyTimeSeconds = 0
+	}
+
+	if req.AvailableFrom != nil && req.AvailableUntil != nil {
+		if !req.AvailableUntil.After(*req.AvailableFrom) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "วันเวลาสิ้นสุดการเข้าเรียน (Available Until) ต้องมากกว่าวันเวลาเริ่มต้น (Available From)",
+			})
+		}
+	}
+
 	var maxOrder int
 	h.db.DB.Model(&models.Lesson{}).Where("module_id = ?", moduleID).Select("COALESCE(MAX(order_index), 0)").Scan(&maxOrder)
 
 	lesson := models.Lesson{
-		ID:          uuid.New(),
-		ModuleID:    moduleID,
-		Title:       strings.TrimSpace(req.Title),
-		ContentType: req.ContentType,
-		VideoURL:    req.VideoURL,
-		EmbedURL:    req.EmbedURL,
-		PDFURL:      req.PDFURL,
-		BodyText:    req.BodyText,
-		OrderIndex:  maxOrder + 1,
+		ID:                  uuid.New(),
+		ModuleID:            moduleID,
+		Title:               strings.TrimSpace(req.Title),
+		ContentType:         req.ContentType,
+		VideoURL:            req.VideoURL,
+		EmbedURL:            req.EmbedURL,
+		PDFURL:              req.PDFURL,
+		BodyText:            req.BodyText,
+		OrderIndex:          maxOrder + 1,
+		DurationMinutes:     req.DurationMinutes,
+		AvailableFrom:       req.AvailableFrom,
+		AvailableUntil:      req.AvailableUntil,
+		MinStudyTimeSeconds: req.MinStudyTimeSeconds,
 	}
 
 	if err := h.db.DB.Create(&lesson).Error; err != nil {
@@ -558,6 +582,22 @@ func (h *CourseHandler) UpdateLesson(c *fiber.Ctx) error {
 		})
 	}
 
+	if req.DurationMinutes < 0 {
+		req.DurationMinutes = 0
+	}
+	if req.MinStudyTimeSeconds < 0 {
+		req.MinStudyTimeSeconds = 0
+	}
+
+	if req.AvailableFrom != nil && req.AvailableUntil != nil {
+		if !req.AvailableUntil.After(*req.AvailableFrom) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "วันเวลาสิ้นสุดการเข้าเรียน (Available Until) ต้องมากกว่าวันเวลาเริ่มต้น (Available From)",
+			})
+		}
+	}
+
 	if strings.TrimSpace(req.Title) != "" {
 		lesson.Title = strings.TrimSpace(req.Title)
 	}
@@ -568,6 +608,10 @@ func (h *CourseHandler) UpdateLesson(c *fiber.Ctx) error {
 	lesson.EmbedURL = req.EmbedURL
 	lesson.PDFURL = req.PDFURL
 	lesson.BodyText = req.BodyText
+	lesson.DurationMinutes = req.DurationMinutes
+	lesson.AvailableFrom = req.AvailableFrom
+	lesson.AvailableUntil = req.AvailableUntil
+	lesson.MinStudyTimeSeconds = req.MinStudyTimeSeconds
 
 	if err := h.db.DB.Save(&lesson).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

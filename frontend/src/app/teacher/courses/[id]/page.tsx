@@ -31,6 +31,10 @@ import {
   AlertTriangle,
   Search,
   Award,
+  Clock,
+  Lock,
+  Calendar,
+  ShieldAlert,
 } from "lucide-react"
 import { FileUploader } from "@/components/file-uploader"
 import { VideoPlayer } from "@/components/video-player"
@@ -50,6 +54,10 @@ interface Lesson {
   pdf_url?: string
   body_text?: string
   order_index: number
+  duration_minutes?: number
+  available_from?: string | null
+  available_until?: string | null
+  min_study_time_seconds?: number
 }
 
 interface Module {
@@ -163,6 +171,10 @@ export default function TeacherCourseBuilderPage() {
     embed_url: string
     pdf_url: string
     body_text: string
+    duration_minutes: number
+    available_from: string
+    available_until: string
+    min_study_time_seconds: number
   }>({
     title: "",
     content_type: "VIDEO_EMBED",
@@ -170,7 +182,35 @@ export default function TeacherCourseBuilderPage() {
     embed_url: "",
     pdf_url: "",
     body_text: "",
+    duration_minutes: 15,
+    available_from: "",
+    available_until: "",
+    min_study_time_seconds: 0,
   })
+
+  // Date format helpers
+  const toDateTimeLocal = (isoString?: string | null) => {
+    if (!isoString) return ""
+    try {
+      const d = new Date(isoString)
+      if (isNaN(d.getTime())) return ""
+      const offset = d.getTimezoneOffset() * 60000
+      const localTime = new Date(d.getTime() - offset)
+      return localTime.toISOString().slice(0, 16)
+    } catch {
+      return ""
+    }
+  }
+
+  const toISOOrNull = (datetimeLocalStr?: string) => {
+    if (!datetimeLocalStr || !datetimeLocalStr.trim()) return null
+    try {
+      const d = new Date(datetimeLocalStr)
+      return isNaN(d.getTime()) ? null : d.toISOString()
+    } catch {
+      return null
+    }
+  }
 
   // Preview Lesson State
   const [previewLesson, setPreviewLesson] = useState<Lesson | null>(null)
@@ -303,6 +343,10 @@ export default function TeacherCourseBuilderPage() {
       embed_url: "",
       pdf_url: "",
       body_text: "",
+      duration_minutes: 15,
+      available_from: "",
+      available_until: "",
+      min_study_time_seconds: 0,
     })
     setShowLessonModal(true)
   }
@@ -317,6 +361,10 @@ export default function TeacherCourseBuilderPage() {
       embed_url: lesson.embed_url || "",
       pdf_url: lesson.pdf_url || "",
       body_text: lesson.body_text || "",
+      duration_minutes: lesson.duration_minutes || 0,
+      available_from: toDateTimeLocal(lesson.available_from),
+      available_until: toDateTimeLocal(lesson.available_until),
+      min_study_time_seconds: lesson.min_study_time_seconds || 0,
     })
     setShowLessonModal(true)
   }
@@ -325,11 +373,27 @@ export default function TeacherCourseBuilderPage() {
     e.preventDefault()
     if (!lessonForm.title.trim() || !activeModuleId) return
 
+    const fromISO = toISOOrNull(lessonForm.available_from)
+    const untilISO = toISOOrNull(lessonForm.available_until)
+
+    if (fromISO && untilISO && new Date(untilISO) <= new Date(fromISO)) {
+      toast.error("วันเวลาสิ้นสุดการเข้าเรียน (Available Until) ต้องมากกว่าวันเวลาเริ่มต้น (Available From)")
+      return
+    }
+
+    const payload = {
+      ...lessonForm,
+      duration_minutes: Number(lessonForm.duration_minutes) || 0,
+      min_study_time_seconds: Number(lessonForm.min_study_time_seconds) || 0,
+      available_from: fromISO,
+      available_until: untilISO,
+    }
+
     setIsSaving(true)
     if (editingLesson) {
       const res = await apiFetch(`/api/teacher/lessons/${editingLesson.id}`, {
         method: "PUT",
-        body: JSON.stringify(lessonForm),
+        body: JSON.stringify(payload),
       })
       if (res.success) {
         setShowLessonModal(false)
@@ -338,7 +402,7 @@ export default function TeacherCourseBuilderPage() {
     } else {
       const res = await apiFetch(`/api/teacher/modules/${activeModuleId}/lessons`, {
         method: "POST",
-        body: JSON.stringify(lessonForm),
+        body: JSON.stringify(payload),
       })
       if (res.success) {
         setShowLessonModal(false)
@@ -666,7 +730,7 @@ export default function TeacherCourseBuilderPage() {
                             </div>
 
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                                   {lesson.title}
                                 </h4>
@@ -675,6 +739,34 @@ export default function TeacherCourseBuilderPage() {
                                 >
                                   {badge.label}
                                 </span>
+
+                                {(lesson.duration_minutes !== undefined && lesson.duration_minutes > 0) && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {lesson.duration_minutes} นาที
+                                  </span>
+                                )}
+
+                                {lesson.available_from && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                                    <Lock className="w-2.5 h-2.5" />
+                                    เปิด: {new Date(lesson.available_from).toLocaleDateString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                  </span>
+                                )}
+
+                                {lesson.available_until && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    หมดเขต: {new Date(lesson.available_until).toLocaleDateString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                  </span>
+                                )}
+
+                                {(lesson.min_study_time_seconds !== undefined && lesson.min_study_time_seconds > 0) && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/60" title="เวลาศึกษาขั้นต่ำก่อนสามารถกดเรียนจบได้">
+                                    <ShieldAlert className="w-2.5 h-2.5" />
+                                    ขั้นต่ำ {lesson.min_study_time_seconds >= 60 ? `${Math.floor(lesson.min_study_time_seconds / 60)} นาที` : `${lesson.min_study_time_seconds} วิ`}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -915,6 +1007,98 @@ export default function TeacherCourseBuilderPage() {
                 />
               </div>
 
+              {/* SCHEDULE & TIMING SETTINGS */}
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+                  <Clock className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                    การกำหนดเวลาและตารางเรียน (Schedule & Time Settings)
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      ระยะเวลาเรียนโดยประมาณ (นาที)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="เช่น 15"
+                      value={lessonForm.duration_minutes}
+                      onChange={(e) =>
+                        setLessonForm({
+                          ...lessonForm,
+                          duration_minutes: Math.max(0, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      ใช้คำนวณเวลารวมของคอร์ส
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      เวลาศึกษาขั้นต่ำก่อนกดจบ (วินาที)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0 = ไม่จำกัด"
+                      value={lessonForm.min_study_time_seconds}
+                      onChange={(e) =>
+                        setLessonForm({
+                          ...lessonForm,
+                          min_study_time_seconds: Math.max(0, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      ป้องกันการกดข้ามบทเรียนทันที (Anti-Skipping)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      วัน-เวลาเริ่มเปิดให้เรียน (Available From)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={lessonForm.available_from}
+                      onChange={(e) =>
+                        setLessonForm({ ...lessonForm, available_from: e.target.value })
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      เว้นว่างหากเปิดทันที
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      วัน-เวลาสิ้นสุดการเข้าเรียน (Available Until)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={lessonForm.available_until}
+                      onChange={(e) =>
+                        setLessonForm({ ...lessonForm, available_until: e.target.value })
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      เว้นว่างหากไม่มีวันหมดเขต
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
@@ -944,7 +1128,7 @@ export default function TeacherCourseBuilderPage() {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
-                  พรีวิวเนื้อหาบทเรียน (Preview)
+                  พรีวิวเนื้อหาบทเรียน (Preview Mode)
                 </span>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   {previewLesson.title}
@@ -957,6 +1141,36 @@ export default function TeacherCourseBuilderPage() {
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* PREVIEW TIMING INFO BADGE */}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+              <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                <Clock className="w-3.5 h-3.5 text-brand-500" />
+                ระยะเวลา: {previewLesson.duration_minutes || 0} นาที
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">|</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                {previewLesson.available_from ? `เปิด: ${new Date(previewLesson.available_from).toLocaleString("th-TH")}` : "เปิดตลอดเวลา"}
+              </span>
+              {previewLesson.available_until && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
+                    หมดเขต: {new Date(previewLesson.available_until).toLocaleString("th-TH")}
+                  </span>
+                </>
+              )}
+              {(previewLesson.min_study_time_seconds !== undefined && previewLesson.min_study_time_seconds > 0) && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    เวลาขั้นต่ำ: {previewLesson.min_study_time_seconds} วินาที
+                  </span>
+                </>
+              )}
             </div>
 
             <div className="space-y-4">
