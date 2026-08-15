@@ -76,11 +76,19 @@ interface EnrolledStudent {
   has_certificate: boolean
 }
 
+interface CourseCategory {
+  id: string
+  name: string
+  color: string
+}
+
 interface Course {
   id: string
   title: string
   description: string
   cover_image_url: string
+  category_id?: string
+  category?: CourseCategory
   is_published: boolean
   teacher_id: string
   teacher?: {
@@ -96,6 +104,7 @@ export default function TeacherCourseBuilderPage() {
   const courseId = params?.id as string
 
   const [course, setCourse] = useState<Course | null>(null)
+  const [categories, setCategories] = useState<CourseCategory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -176,20 +185,28 @@ export default function TeacherCourseBuilderPage() {
     title: "",
     description: "",
     cover_image_url: "",
+    category_id: "",
     is_published: true,
   })
 
   const fetchCourseData = async () => {
     setIsLoading(true)
-    const res = await apiFetch<Course>(`/api/teacher/courses/${courseId}`)
-    if (res.success && res.data) {
-      setCourse(res.data)
+    const [resCourse, resCategories] = await Promise.all([
+      apiFetch<Course>(`/api/teacher/courses/${courseId}`),
+      apiFetch<CourseCategory[]>("/api/categories"),
+    ])
+    if (resCourse.success && resCourse.data) {
+      setCourse(resCourse.data)
       setCourseMetaForm({
-        title: res.data.title,
-        description: res.data.description || "",
-        cover_image_url: res.data.cover_image_url || "",
-        is_published: res.data.is_published,
+        title: resCourse.data.title,
+        description: resCourse.data.description || "",
+        cover_image_url: resCourse.data.cover_image_url || "",
+        category_id: resCourse.data.category_id || "",
+        is_published: resCourse.data.is_published,
       })
+    }
+    if (resCategories.success && resCategories.data) {
+      setCategories(resCategories.data)
     }
     setIsLoading(false)
   }
@@ -378,11 +395,17 @@ export default function TeacherCourseBuilderPage() {
     setIsSaving(true)
     const res = await apiFetch(`/api/teacher/courses/${courseId}`, {
       method: "PUT",
-      body: JSON.stringify(courseMetaForm),
+      body: JSON.stringify({
+        ...courseMetaForm,
+        category_id: courseMetaForm.category_id ? courseMetaForm.category_id : null,
+      }),
     })
     if (res.success) {
+      toast.success("บันทึกการตั้งค่ารายวิชาสำเร็จเรียบร้อย")
       setShowCourseMetaModal(false)
       fetchCourseData()
+    } else {
+      toast.error(res.message || "ไม่สามารถบันทึกข้อมูลรายวิชาได้")
     }
     setIsSaving(false)
   }
@@ -441,7 +464,7 @@ export default function TeacherCourseBuilderPage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
                 Course Curriculum Builder
               </span>
@@ -454,6 +477,22 @@ export default function TeacherCourseBuilderPage() {
               >
                 {course.is_published ? "เผยแพร่แล้ว" : "ฉบับร่าง"}
               </span>
+              {course.category ? (
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                  style={{
+                    backgroundColor: `${course.category.color || "#2563eb"}15`,
+                    color: course.category.color || "#2563eb",
+                    border: `1px solid ${course.category.color || "#2563eb"}30`,
+                  }}
+                >
+                  {course.category.name}
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                  ไม่ระบุหมวดหมู่
+                </span>
+              )}
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-0.5">
               {course.title}
@@ -997,6 +1036,24 @@ export default function TeacherCourseBuilderPage() {
                   onChange={(e) => setCourseMetaForm({ ...courseMetaForm, title: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  หมวดหมู่รายวิชา / กลุ่มสาระการเรียนรู้
+                </label>
+                <select
+                  value={courseMetaForm.category_id}
+                  onChange={(e) => setCourseMetaForm({ ...courseMetaForm, category_id: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">-- ไม่ระบุหมวดหมู่ (Uncategorized) --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

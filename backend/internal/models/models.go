@@ -56,17 +56,39 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
+// CourseCategory represents the course_categories table
+type CourseCategory struct {
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name        string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"name"`
+	Description string    `gorm:"type:text" json:"description,omitempty"`
+	Color       string    `gorm:"type:varchar(50);default:'#2563eb'" json:"color,omitempty"`
+	OrderIndex  int       `gorm:"not null;default:0" json:"order_index"`
+	CreatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+	Courses []Course `gorm:"foreignKey:CategoryID;constraint:OnDelete:SET NULL" json:"courses,omitempty"`
+}
+
+func (cc *CourseCategory) BeforeCreate(tx *gorm.DB) (err error) {
+	if cc.ID == uuid.Nil {
+		cc.ID = uuid.New()
+	}
+	return
+}
+
 // Course represents the courses table
 type Course struct {
-	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Title         string    `gorm:"type:varchar(255);not null" json:"title"`
-	Description   string    `gorm:"type:text" json:"description"`
-	CoverImageURL string    `gorm:"type:varchar(500)" json:"cover_image_url"`
-	TeacherID     uuid.UUID `gorm:"type:uuid;not null;index" json:"teacher_id"`
-	Teacher       *User     `gorm:"foreignKey:TeacherID;constraint:OnDelete:CASCADE" json:"teacher,omitempty"`
-	IsPublished   bool      `gorm:"default:false" json:"is_published"`
-	CreatedAt     time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt     time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID            uuid.UUID       `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Title         string          `gorm:"type:varchar(255);not null" json:"title"`
+	Description   string          `gorm:"type:text" json:"description"`
+	CoverImageURL string          `gorm:"type:varchar(500)" json:"cover_image_url"`
+	TeacherID     uuid.UUID       `gorm:"type:uuid;not null;index" json:"teacher_id"`
+	Teacher       *User           `gorm:"foreignKey:TeacherID;constraint:OnDelete:CASCADE" json:"teacher,omitempty"`
+	CategoryID    *uuid.UUID      `gorm:"type:uuid;index" json:"category_id,omitempty"`
+	Category      *CourseCategory `gorm:"foreignKey:CategoryID;constraint:OnDelete:SET NULL" json:"category,omitempty"`
+	IsPublished   bool            `gorm:"default:false" json:"is_published"`
+	CreatedAt     time.Time       `gorm:"not null;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt     time.Time       `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
 	Modules     []Module     `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE" json:"modules,omitempty"`
 	Enrollments []Enrollment `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE" json:"enrollments,omitempty"`

@@ -23,11 +23,19 @@ import {
 } from "lucide-react"
 import { FileUploader } from "@/components/file-uploader"
 
+interface CourseCategory {
+  id: string
+  name: string
+  color: string
+}
+
 interface CourseItem {
   id: string
   title: string
   description: string
   cover_image_url: string
+  category_id?: string
+  category?: CourseCategory
   is_published: boolean
   created_at: string
   modules_count: number
@@ -38,6 +46,7 @@ interface CourseItem {
 export default function TeacherDashboardPage() {
   const { user } = useAuth()
   const [courses, setCourses] = useState<CourseItem[]>([])
+  const [categories, setCategories] = useState<CourseCategory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -46,14 +55,21 @@ export default function TeacherDashboardPage() {
   const [newTitle, setNewTitle] = useState("")
   const [newDesc, setNewDesc] = useState("")
   const [newCoverUrl, setNewCoverUrl] = useState("")
+  const [newCategoryId, setNewCategoryId] = useState("")
   const [newPublished, setNewPublished] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const fetchCourses = async () => {
     setIsLoading(true)
-    const res = await apiFetch<CourseItem[]>("/api/teacher/courses")
-    if (res.success && res.data) {
-      setCourses(res.data)
+    const [resCourses, resCategories] = await Promise.all([
+      apiFetch<CourseItem[]>("/api/teacher/courses"),
+      apiFetch<CourseCategory[]>("/api/categories"),
+    ])
+    if (resCourses.success && resCourses.data) {
+      setCourses(resCourses.data)
+    }
+    if (resCategories.success && resCategories.data) {
+      setCategories(resCategories.data)
     }
     setIsLoading(false)
   }
@@ -79,6 +95,7 @@ export default function TeacherDashboardPage() {
         title: newTitle.trim(),
         description: newDesc.trim(),
         cover_image_url: newCoverUrl,
+        category_id: newCategoryId ? newCategoryId : null,
         is_published: newPublished,
       }),
     })
@@ -89,6 +106,7 @@ export default function TeacherDashboardPage() {
       setNewTitle("")
       setNewDesc("")
       setNewCoverUrl("")
+      setNewCategoryId("")
       fetchCourses()
     } else {
       const err = res.message || "เกิดข้อผิดพลาดในการสร้างรายวิชา"
@@ -245,6 +263,22 @@ export default function TeacherDashboardPage() {
                       >
                         {course.is_published ? "● เผยแพร่แล้ว (Published)" : "○ ฉบับร่าง (Draft)"}
                       </span>
+                      {course.category ? (
+                        <span
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold"
+                          style={{
+                            backgroundColor: `${course.category.color || "#2563eb"}15`,
+                            color: course.category.color || "#2563eb",
+                            border: `1px solid ${course.category.color || "#2563eb"}30`,
+                          }}
+                        >
+                          {course.category.name}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                          ไม่ระบุหมวดหมู่
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -344,6 +378,24 @@ export default function TeacherDashboardPage() {
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  หมวดหมู่รายวิชา / กลุ่มสาระการเรียนรู้
+                </label>
+                <select
+                  value={newCategoryId}
+                  onChange={(e) => setNewCategoryId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">-- ไม่ระบุหมวดหมู่ (Uncategorized) --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

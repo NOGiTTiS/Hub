@@ -21,14 +21,26 @@ import {
   Award,
   UserMinus,
   AlertTriangle,
+  Search,
+  X,
+  Filter,
 } from "lucide-react"
 import { CertificateModal, CertificateData } from "@/components/certificate-modal"
+
+interface CourseCategory {
+  id: string
+  name: string
+  color: string
+  order_index: number
+}
 
 interface CourseCatalogItem {
   id: string
   title: string
   description: string
   cover_image_url: string
+  category_id?: string
+  category?: CourseCategory
   is_published: boolean
   teacher?: {
     first_name: string
@@ -47,6 +59,8 @@ interface MyEnrolledCourse {
     title: string
     description: string
     cover_image_url: string
+    category_id?: string
+    category?: CourseCategory
     teacher?: {
       first_name: string
       last_name: string
@@ -63,6 +77,9 @@ export default function StudentDashboardPage() {
   const { user } = useAuth()
   const [catalog, setCatalog] = useState<CourseCatalogItem[]>([])
   const [myCourses, setMyCourses] = useState<MyEnrolledCourse[]>([])
+  const [categories, setCategories] = useState<CourseCategory[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("ALL")
+  const [searchCatalogTerm, setSearchCatalogTerm] = useState<string>("")
   const [isLoading, setIsLoading] = useState(true)
   const [enrollingId, setEnrollingId] = useState<string | null>(null)
 
@@ -85,9 +102,10 @@ export default function StudentDashboardPage() {
 
   const fetchData = async () => {
     setIsLoading(true)
-    const [catRes, myRes] = await Promise.all([
+    const [catRes, myRes, catListRes] = await Promise.all([
       apiFetch<CourseCatalogItem[]>("/api/student/courses"),
       apiFetch<MyEnrolledCourse[]>("/api/student/my-courses"),
+      apiFetch<CourseCategory[]>("/api/categories"),
     ])
 
     if (catRes.success && catRes.data) {
@@ -95,6 +113,9 @@ export default function StudentDashboardPage() {
     }
     if (myRes.success && myRes.data) {
       setMyCourses(myRes.data)
+    }
+    if (catListRes.success && catListRes.data) {
+      setCategories(catListRes.data)
     }
     setIsLoading(false)
   }
@@ -249,10 +270,24 @@ export default function StudentDashboardPage() {
                 className="p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition flex flex-col justify-between gap-4"
               >
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-900">
-                      ลงทะเบียนแล้ว
-                    </span>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-900">
+                        ลงทะเบียนแล้ว
+                      </span>
+                      {item.course.category && (
+                        <span
+                          className="text-[10px] font-bold px-2.5 py-0.5 rounded-md"
+                          style={{
+                            backgroundColor: `${item.course.category.color || "#2563eb"}15`,
+                            color: item.course.category.color || "#2563eb",
+                            border: `1px solid ${item.course.category.color || "#2563eb"}30`,
+                          }}
+                        >
+                          {item.course.category.name}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
                         {item.progress_percent}% สำเร็จ
@@ -342,15 +377,83 @@ export default function StudentDashboardPage() {
 
       {/* ALL AVAILABLE COURSES CATALOG */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-brand-600" />
-            รายวิชาทั้งหมดที่เปิดสอน (Course Catalog)
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            เลือกรายวิชาที่สนใจเพื่อเริ่มลงทะเบียนและเข้าเรียนออนไลน์
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-brand-600" />
+              รายวิชาทั้งหมดที่เปิดสอน (Course Catalog)
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              เลือกรายวิชาที่สนใจเพื่อเริ่มลงทะเบียนและเข้าเรียนออนไลน์
+            </p>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative w-full md:w-72">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อวิชา หรือคำอธิบาย..."
+              value={searchCatalogTerm}
+              onChange={(e) => setSearchCatalogTerm(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white"
+            />
+            {searchCatalogTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchCatalogTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Category Pills / Filter Tabs */}
+        {categories.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-1">
+            <button
+              type="button"
+              onClick={() => setSelectedCategoryId("ALL")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                selectedCategoryId === "ALL"
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm"
+                  : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+              }`}
+            >
+              ทั้งหมด ({catalog.length})
+            </button>
+            {categories.map((cat) => {
+              const count = catalog.filter((c) => c.category_id === cat.id).length
+              const isSelected = selectedCategoryId === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 border ${
+                    isSelected
+                      ? "shadow-sm text-white"
+                      : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                  style={
+                    isSelected
+                      ? { backgroundColor: cat.color || "#2563eb", borderColor: cat.color || "#2563eb" }
+                      : undefined
+                  }
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: isSelected ? "#ffffff" : cat.color || "#2563eb" }}
+                  />
+                  <span>{cat.name}</span>
+                  <span className="text-[10px] opacity-75 font-normal ml-0.5">({count})</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {isLoading ? (
           <div className="py-16 flex flex-col items-center justify-center text-slate-400">
@@ -366,73 +469,126 @@ export default function StudentDashboardPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {catalog.map((course) => (
-              <div
-                key={course.id}
-                className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:border-brand-500/50 transition overflow-hidden flex flex-col justify-between group shadow-sm hover:shadow-md"
-              >
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">
-                      มัธยมศึกษา
-                    </span>
-                    {course.is_enrolled && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                        ✓ ลงทะเบียนแล้ว ({course.progress_percent}%)
+          (() => {
+            const filteredCatalog = catalog.filter((course) => {
+              const matchesCategory =
+                selectedCategoryId === "ALL" || course.category_id === selectedCategoryId
+              const matchesSearch =
+                !searchCatalogTerm.trim() ||
+                course.title.toLowerCase().includes(searchCatalogTerm.toLowerCase()) ||
+                (course.description &&
+                  course.description.toLowerCase().includes(searchCatalogTerm.toLowerCase()))
+              return matchesCategory && matchesSearch
+            })
+
+            if (filteredCatalog.length === 0) {
+              return (
+                <div className="py-12 text-center space-y-2 bg-slate-50/50 dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-6">
+                  <Search className="w-8 h-8 text-slate-400 mx-auto" />
+                  <p className="font-semibold text-sm text-slate-700 dark:text-slate-300">
+                    ไม่พบรายวิชาที่ตรงกับเงื่อนไขการค้นหา
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    ลองเปลี่ยนหมวดหมู่หรือล้างคำค้นหาเพื่อดูวิชาทั้งหมด
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategoryId("ALL")
+                      setSearchCatalogTerm("")
+                    }}
+                    className="text-xs font-bold text-brand-600 hover:text-brand-700 underline mt-2 inline-block"
+                  >
+                    ล้างตัวกรองทั้งหมด
+                  </button>
+                </div>
+              )
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredCatalog.map((course) => (
+                  <div
+                    key={course.id}
+                    className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:border-brand-500/50 transition overflow-hidden flex flex-col justify-between group shadow-sm hover:shadow-md"
+                  >
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300">
+                            มัธยมศึกษา
+                          </span>
+                          {course.category && (
+                            <span
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                              style={{
+                                backgroundColor: `${course.category.color || "#2563eb"}15`,
+                                color: course.category.color || "#2563eb",
+                                border: `1px solid ${course.category.color || "#2563eb"}30`,
+                              }}
+                            >
+                              {course.category.name}
+                            </span>
+                          )}
+                        </div>
+                        {course.is_enrolled && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                            ✓ ลงทะเบียนแล้ว ({course.progress_percent}%)
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 transition">
+                          {course.title}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {course.description || "รายวิชาการเรียนรู้ออนไลน์สำหรับนักเรียน"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                        <span className="flex items-center gap-1">
+                          <Layers className="w-3.5 h-3.5 text-brand-500" />
+                          {course.modules_count} โมดูล
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                          {course.lessons_count} บทเรียน
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[50%]">
+                        ครู{course.teacher?.first_name} {course.teacher?.last_name}
                       </span>
-                    )}
+
+                      {course.is_enrolled ? (
+                        <Link
+                          href={`/student/courses/${course.id}`}
+                          className="inline-flex items-center gap-1 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition shrink-0"
+                        >
+                          เข้าเรียนต่อ
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={enrollingId === course.id}
+                          onClick={() => handleEnroll(course.id)}
+                          className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition shrink-0 disabled:opacity-50"
+                        >
+                          {enrollingId === course.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          ลงทะเบียนเรียนฟรี
+                        </button>
+                      )}
+                    </div>
                   </div>
-
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 transition">
-                      {course.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                      {course.description || "รายวิชาการเรียนรู้ออนไลน์สำหรับนักเรียน"}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
-                    <span className="flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5 text-brand-500" />
-                      {course.modules_count} โมดูล
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                      {course.lessons_count} บทเรียน
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[50%]">
-                    ครู{course.teacher?.first_name} {course.teacher?.last_name}
-                  </span>
-
-                  {course.is_enrolled ? (
-                    <Link
-                      href={`/student/courses/${course.id}`}
-                      className="inline-flex items-center gap-1 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition shrink-0"
-                    >
-                      เข้าเรียนต่อ
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={enrollingId === course.id}
-                      onClick={() => handleEnroll(course.id)}
-                      className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition shrink-0 disabled:opacity-50"
-                    >
-                      {enrollingId === course.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                      ลงทะเบียนเรียนฟรี
-                    </button>
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+          })()
         )}
       </div>
 

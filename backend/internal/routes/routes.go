@@ -59,6 +59,10 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	settingsHandler := handlers.NewSettingsHandler(db, cfg)
 	api.Get("/settings/public", settingsHandler.GetPublicSettings)
 
+	// Category Handler
+	categoryHandler := handlers.NewCategoryHandler(db)
+	api.Get("/categories", categoryHandler.ListCategories)
+
 	// Handlers
 	adminUserHandler := handlers.NewAdminUserHandler(db)
 	courseHandler := handlers.NewCourseHandler(db)
@@ -80,6 +84,12 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	adminGroup.Get("/settings/system-health", settingsHandler.GetSystemHealth)
 	adminGroup.Get("/courses/:id/students", courseHandler.ListCourseStudents)
 	adminGroup.Delete("/courses/:id/students/:studentId", courseHandler.RemoveStudentFromCourse)
+
+	// Admin Category Management
+	adminGroup.Post("/categories", categoryHandler.CreateCategory)
+	adminGroup.Put("/categories/:id", categoryHandler.UpdateCategory)
+	adminGroup.Delete("/categories/:id", categoryHandler.DeleteCategory)
+	adminGroup.Post("/categories/reorder", categoryHandler.ReorderCategories)
 
 	// Teacher Routes (Course, Content, Assignments, Quizzes Management)
 	teacherGroup := api.Group("/teacher", middleware.RequireAuth(cfg), middleware.RequireRole(models.RoleTeacher))

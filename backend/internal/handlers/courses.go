@@ -40,7 +40,7 @@ func (h *CourseHandler) ListTeacherCourses(c *fiber.Ctx) error {
 	}
 
 	var courses []models.Course
-	query := h.db.DB.Model(&models.Course{}).Preload("Teacher")
+	query := h.db.DB.Model(&models.Course{}).Preload("Teacher").Preload("Category")
 
 	if claims.Role != models.RoleAdmin {
 		query = query.Where("teacher_id = ?", claims.UserID)
@@ -93,6 +93,7 @@ func (h *CourseHandler) GetTeacherCourse(c *fiber.Ctx) error {
 
 	var course models.Course
 	query := h.db.DB.Preload("Teacher").
+		Preload("Category").
 		Preload("Modules", func(db *gorm.DB) *gorm.DB {
 			return db.Order("modules.order_index ASC")
 		}).
@@ -126,10 +127,11 @@ func (h *CourseHandler) GetTeacherCourse(c *fiber.Ctx) error {
 }
 
 type CreateCourseRequest struct {
-	Title         string `json:"title"`
-	Description   string `json:"description"`
-	CoverImageURL string `json:"cover_image_url"`
-	IsPublished   bool   `json:"is_published"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description"`
+	CoverImageURL string     `json:"cover_image_url"`
+	CategoryID    *uuid.UUID `json:"category_id"`
+	IsPublished   bool       `json:"is_published"`
 }
 
 // CreateCourse creates a new course for the authenticated teacher
@@ -157,6 +159,7 @@ func (h *CourseHandler) CreateCourse(c *fiber.Ctx) error {
 		Description:   req.Description,
 		CoverImageURL: req.CoverImageURL,
 		TeacherID:     claims.UserID,
+		CategoryID:    req.CategoryID,
 		IsPublished:   req.IsPublished,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
@@ -169,6 +172,9 @@ func (h *CourseHandler) CreateCourse(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
+
+	// Preload category & teacher
+	h.db.DB.Preload("Category").Preload("Teacher").First(&course, course.ID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -215,6 +221,7 @@ func (h *CourseHandler) UpdateCourse(c *fiber.Ctx) error {
 	if req.CoverImageURL != "" {
 		course.CoverImageURL = req.CoverImageURL
 	}
+	course.CategoryID = req.CategoryID
 	course.IsPublished = req.IsPublished
 	course.UpdatedAt = time.Now()
 
@@ -224,6 +231,9 @@ func (h *CourseHandler) UpdateCourse(c *fiber.Ctx) error {
 			"message": "ไม่สามารถบันทึกการแก้ไขรายวิชาได้",
 		})
 	}
+
+	// Preload category & teacher
+	h.db.DB.Preload("Category").Preload("Teacher").First(&course, course.ID)
 
 	return c.JSON(fiber.Map{
 		"success": true,

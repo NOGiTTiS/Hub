@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -57,6 +58,7 @@ func (d *Database) AutoMigrate() error {
 	log.Println("Running GORM AutoMigrate...")
 	err := d.DB.AutoMigrate(
 		&models.User{},
+		&models.CourseCategory{},
 		&models.Course{},
 		&models.Module{},
 		&models.Lesson{},
@@ -73,7 +75,39 @@ func (d *Database) AutoMigrate() error {
 		return err
 	}
 
-	return SeedDefaultSettings(d.DB)
+	if err := SeedDefaultSettings(d.DB); err != nil {
+		log.Printf("⚠️ Failed to seed settings: %v", err)
+	}
+
+	return SeedDefaultCategories(d.DB)
+}
+
+func SeedDefaultCategories(db *gorm.DB) error {
+	defaultCategories := []models.CourseCategory{
+		{Name: "วิทยาศาสตร์และเทคโนโลยี", Description: "กลุ่มสาระการเรียนรู้วิทยาศาสตร์ คอมพิวเตอร์ และเทคโนโลยี", Color: "#2563eb", OrderIndex: 1},
+		{Name: "คณิตศาสตร์", Description: "กลุ่มสาระการเรียนรู้คณิตศาสตร์และสถิติ", Color: "#7c3aed", OrderIndex: 2},
+		{Name: "ภาษาต่างประเทศ", Description: "กลุ่มสาระการเรียนรู้ภาษาต่างประเทศ (อังกฤษ, ญี่ปุ่น, จีน ฯลฯ)", Color: "#059669", OrderIndex: 3},
+		{Name: "ภาษาไทย", Description: "กลุ่มสาระการเรียนรู้ภาษาไทย วรรณคดี และการสื่อสาร", Color: "#d97706", OrderIndex: 4},
+		{Name: "สังคมศึกษา ศาสนา และวัฒนธรรม", Description: "กลุ่มสาระการเรียนรู้สังคมศึกษา ประวัติศาสตร์ ภูมิศาสตร์ และหน้าที่พลเมือง", Color: "#dc2626", OrderIndex: 5},
+		{Name: "ศิลปะ ดนตรี และนาฏศิลป์", Description: "กลุ่มสาระการเรียนรู้ทัศนศิลป์ ดนตรีสากล/ไทย และนาฏศิลป์", Color: "#db2777", OrderIndex: 6},
+		{Name: "สุขศึกษาและพลศึกษา", Description: "กลุ่มสาระการเรียนรู้สุขศึกษา กีฬา และการส่งเสริมสุขภาพ", Color: "#16a34a", OrderIndex: 7},
+		{Name: "การงานอาชีพ", Description: "กลุ่มสาระการเรียนรู้การงานอาชีพ ทักษะชีวิต และเทคโนโลยีธุรกิจ", Color: "#ea580c", OrderIndex: 8},
+		{Name: "กิจกรรมพัฒนาผู้เรียนและทั่วไป", Description: "กิจกรรมแนะแนว ชมรม และหลักสูตรเสริมทักษะทั่วไป", Color: "#4b5563", OrderIndex: 9},
+	}
+
+	for _, cat := range defaultCategories {
+		var count int64
+		db.Model(&models.CourseCategory{}).Where("name = ?", cat.Name).Count(&count)
+		if count == 0 {
+			cat.ID = uuid.New()
+			cat.CreatedAt = time.Now()
+			cat.UpdatedAt = time.Now()
+			if err := db.Create(&cat).Error; err != nil {
+				log.Printf("⚠️ Failed to seed category %s: %v", cat.Name, err)
+			}
+		}
+	}
+	return nil
 }
 
 func SeedDefaultSettings(db *gorm.DB) error {

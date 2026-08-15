@@ -40,11 +40,17 @@ func (h *StudentCourseHandler) ListPublishedCourses(c *fiber.Ctx) error {
 		studentID = claims.UserID
 	}
 
+	categoryIDStr := c.Query("category_id")
+	query := h.db.DB.Preload("Teacher").Preload("Category").Where("is_published = ?", true)
+
+	if categoryIDStr != "" {
+		if categoryID, err := uuid.Parse(categoryIDStr); err == nil {
+			query = query.Where("category_id = ?", categoryID)
+		}
+	}
+
 	var courses []models.Course
-	if err := h.db.DB.Preload("Teacher").
-		Where("is_published = ?", true).
-		Order("created_at DESC").
-		Find(&courses).Error; err != nil {
+	if err := query.Order("created_at DESC").Find(&courses).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"message": "ไม่สามารถดึงข้อมูลรายวิชาได้",
@@ -100,7 +106,7 @@ func (h *StudentCourseHandler) GetMyCourses(c *fiber.Ctx) error {
 	}
 
 	var enrollments []models.Enrollment
-	if err := h.db.DB.Preload("Course.Teacher").
+	if err := h.db.DB.Preload("Course.Teacher").Preload("Course.Category").
 		Where("student_id = ?", claims.UserID).
 		Order("updated_at DESC").
 		Find(&enrollments).Error; err != nil {

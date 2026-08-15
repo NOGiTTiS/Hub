@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   UserCheck,
   Settings,
+  Layers,
 } from "lucide-react"
 
 export function Navbar() {
@@ -83,6 +84,7 @@ export function Navbar() {
     ...(user?.role === "ADMIN"
       ? [
           { href: "/admin", label: "จัดการผู้ใช้งาน (User Management)", icon: Users },
+          { href: "/admin/categories", label: "จัดการหมวดหมู่วิชา (Categories)", icon: Layers },
           { href: "/admin/settings", label: "ตั้งค่าระบบ (System Settings)", icon: Settings },
         ]
       : []),

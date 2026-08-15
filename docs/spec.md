@@ -58,6 +58,7 @@
 | Column Name | Data Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PRIMARY KEY | รหัสคอร์ส |
+| `category_id` | UUID | NULL, FOREIGN KEY -> CourseCategories(id) ON DELETE SET NULL | หมวดหมู่รายวิชา/กลุ่มสาระ |
 | `title` | VARCHAR(255) | NOT NULL | ชื่อวิชา/คอร์ส |
 | `description` | TEXT | NULL | รายละเอียดวิชา |
 | `cover_image_url`| VARCHAR(500) | NULL | รูปปกคอร์ส |
@@ -169,6 +170,17 @@
 | `category` | VARCHAR(50) | NOT NULL DEFAULT 'GENERAL' | หมวดหมู่ (`GENERAL`, `BRANDING`, `POLICY`, `ANNOUNCEMENT`, `MAINTENANCE`) |
 | `updated_at` | TIMESTAMPTZ | Default NOW() | วันเวลาที่แก้ไขล่าสุด |
 
+#### 11. CourseCategories (ตารางหมวดหมู่รายวิชา / กลุ่มสาระการเรียนรู้)
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | รหัสหมวดหมู่รายวิชา |
+| `name` | VARCHAR(100) | UNIQUE, NOT NULL | ชื่อหมวดหมู่ / กลุ่มสาระการเรียนรู้ |
+| `description` | TEXT | NULL | คำอธิบายหมวดหมู่รายวิชา |
+| `color` | VARCHAR(30) | NOT NULL DEFAULT '#2563eb' | รหัสสีประจำหมวดหมู่ (Hex Code) |
+| `order_index` | INT | NOT NULL DEFAULT 0 | ลำดับการจัดเรียงแสดงผล |
+| `created_at` | TIMESTAMPTZ | Default NOW() | วันเวลาสร้าง |
+| `updated_at` | TIMESTAMPTZ | Default NOW() | วันเวลาอัปเดต |
+
 ---
 
 ## 3. สรุปรายการ API Endpoints (API Routes Matrix)
@@ -193,14 +205,19 @@
 | `GET` | `/api/admin/settings` | ADMIN | ดึงข้อมูลการตั้งค่าระบบทั้งหมดแยกตามหมวดหมู่ |
 | `PUT` | `/api/admin/settings` | ADMIN | บันทึกแก้ไขการตั้งค่าระบบแบบ Batch Key-Value |
 | `GET` | `/api/admin/settings/system-health` | ADMIN | รายงานผลการตรวจสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime |
+| `GET` | `/api/categories` | Public | ดึงรายการหมวดหมู่รายวิชาทั้งหมด เรียงตาม `order_index` |
+| `POST` | `/api/admin/categories` | ADMIN | สร้างหมวดหมู่รายวิชาใหม่ (ชื่อ, คำอธิบาย, สี) |
+| `PUT` | `/api/admin/categories/:id` | ADMIN | แก้ไขข้อมูลหมวดหมู่รายวิชา |
+| `DELETE`| `/api/admin/categories/:id` | ADMIN | ลบหมวดหมู่รายวิชา (ย้ายคอร์สในหมวดเป็น Uncategorized) |
+| `POST` | `/api/admin/categories/reorder` | ADMIN | จัดเรียงลำดับหมวดหมู่ใหม่แบบ Batch (Reorder) |
 
 ### 3.2 การจัดการรายวิชาและบทเรียน (Teacher Course Management API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/teacher/courses` | TEACHER | ดึงรายการวิชาของครูพร้อมสถิติโมดูล/นักเรียน |
-| `POST` | `/api/teacher/courses` | TEACHER | สร้างรายวิชาใหม่ |
-| `GET` | `/api/teacher/courses/:id` | TEACHER | ดึงข้อมูลคอร์ส โมดูล และบทเรียนทั้งหมด |
-| `PUT` | `/api/teacher/courses/:id` | TEACHER | แก้ไขข้อมูลรายวิชา (ชื่อ, คำอธิบาย, รูปปก) |
+| `GET` | `/api/teacher/courses` | TEACHER | ดึงรายการวิชาของครูพร้อมสถิติโมดูล/นักเรียน และข้อมูลหมวดหมู่ |
+| `POST` | `/api/teacher/courses` | TEACHER | สร้างรายวิชาใหม่ (รองรับ `category_id`) |
+| `GET` | `/api/teacher/courses/:id` | TEACHER | ดึงข้อมูลคอร์ส โมดูล บทเรียน และหมวดหมู่ |
+| `PUT` | `/api/teacher/courses/:id` | TEACHER | แก้ไขข้อมูลรายวิชา (ชื่อ, คำอธิบาย, รูปปก, `category_id`) |
 | `DELETE`| `/api/teacher/courses/:id` | TEACHER | ลบรายวิชาและโมดูลทั้งหมดภายใน |
 | `PATCH` | `/api/teacher/courses/:id/publish`| TEACHER | สลับสถานะเปิด/ปิดเผยแพร่คอร์ส |
 | `POST` | `/api/teacher/courses/:courseId/modules` | TEACHER | เพิ่มโมดูลใหม่ในคอร์ส |
@@ -237,8 +254,8 @@
 ### 3.4 การเรียนและการติดตามผล (Student API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/student/courses` | STUDENT | รายการวิชาทั้งหมดที่เปิดเผยแพร่ (Catalog) |
-| `GET` | `/api/student/my-courses` | STUDENT | รายการวิชาที่ตนเองลงทะเบียนไว้ พร้อม % Progress |
+| `GET` | `/api/student/courses` | STUDENT | รายการวิชาทั้งหมดที่เปิดเผยแพร่ (Catalog) พร้อมข้อมูลหมวดหมู่ (รองรับ `?category_id=<uuid>`) |
+| `GET` | `/api/student/my-courses` | STUDENT | รายการวิชาที่ตนเองลงทะเบียนไว้ พร้อม % Progress และข้อมูลหมวดหมู่ |
 | `POST` | `/api/student/courses/:id/enroll` | STUDENT | ลงทะเบียนเข้าเรียนในรายวิชา |
 | `DELETE`| `/api/student/courses/:id/enroll` | STUDENT | ยกเลิกการลงทะเบียน / ถอนรายวิชา (Drop Course) พร้อมรีเซ็ตความก้าวหน้า |
 | `GET` | `/api/student/courses/:id/player` | STUDENT | ดึงข้อมูลห้องเรียน สารบัญบทเรียน และสถานะการเรียน (Player Gate ป้องกันผู้ยังไม่ลงทะเบียน) |
@@ -280,6 +297,7 @@
 - [x] Implement Video Embed & PDF Viewer Components in Next.js 16
 - [x] Build Student Course Browsing & Course Player Interface
 - [x] Implement **Course Unenrollment & Student Management System** (Student Drop Course with Confirmation Modal, Player Gate Protection, Teacher Enrolled Students Management Modal & Table UI, and Admin/Teacher Student Removal API & Handlers)
+- [x] Implement **Course Categories & Subject Groups Integration** (Admin Category Management `/admin/categories`, Teacher Course Category Assignment, Student Category Filter Pills & Discovery Bar)
 
 ### 📌 Phase 4: Assessment, Code Playground & Certificate System
 - [x] Build Assignment Creation, Submission & Grading System (Teacher assigns, Student uploads file/text, Teacher grades & feedbacks)
@@ -290,6 +308,7 @@
 ### 📌 Phase 5: Admin System Settings, Branding, Governance & Modern UI
 - [x] Implement System Settings Data Model, Seed Defaults & Batch Update API
 - [x] Build Admin System Settings Dashboard (`/admin/settings`) with 5 Dedicated Tabs (School Profile, Branding, Policy, Announcements, Diagnostics)
+- [x] Implement **Course Categories Management Engine** (`/admin/categories`) with Full CRUD, Color Presets, Drag-free Up/Down Reordering, and Graceful Uncategorized Course Protection
 - [x] Implement Dynamic School Branding & Theme Customizer (Logo upload, Favicon, Real-time Theme Colors)
 - [x] Implement Enforced Maintenance Mode (Backend 503 Guard Middleware + Fullscreen Maintenance Screen + Real-time Check)
 - [x] Implement Student Self-Registration (`POST /api/auth/register` + `/register` Portal + Dynamic Policy Control)
@@ -345,4 +364,4 @@ docker compose up -d --build
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 10 ตารางรวม SystemSettings, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบ, โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), และระบบแจ้งเตือน Sonner Toast แบบครบวงจร*

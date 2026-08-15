@@ -82,12 +82,19 @@ func SeedDatabase(db *gorm.DB) error {
 	log.Printf("✓ Created %d initial users (Admin, Teacher, Students)", len(users))
 
 	// 4. Create Sample Course
+	var sciCat models.CourseCategory
+	var catID *uuid.UUID
+	if err := db.Where("name = ?", "วิทยาศาสตร์และเทคโนโลยี").First(&sciCat).Error; err == nil {
+		catID = &sciCat.ID
+	}
+
 	sampleCourse := models.Course{
 		ID:            uuid.New(),
 		Title:         "วิทยาการคำนวณและวิทยาการข้อมูล ม.4 (CS & Data Science)",
 		Description:   "หลักสูตรเรียนรู้พื้นฐานการเขียนโปรแกรม Python โครงสร้างข้อมูล และการวิเคราะห์ข้อมูลเบื้องต้น",
 		CoverImageURL: "/uploads/covers/python-course.jpg",
 		TeacherID:     teacher.ID,
+		CategoryID:    catID,
 		IsPublished:   true,
 	}
 	if err := db.Create(&sampleCourse).Error; err != nil {
