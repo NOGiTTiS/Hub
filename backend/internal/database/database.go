@@ -199,7 +199,7 @@ func SeedDefaultSettings(db *gorm.DB) error {
 		{Key: "landing_cta_title", Value: "พร้อมเริ่มต้นการเรียนรู้ในยุคดิจิทัลแล้วหรือยัง?", Description: "หัวข้อแถบเชิญชวนท้ายหน้า", Category: "LANDING"},
 		{Key: "landing_cta_subtitle", Value: "เข้าสู่ระบบและร่วมเป็นส่วนหนึ่งของสังคมการเรียนรู้ออนไลน์ระดับมัธยมศึกษา", Description: "คำอธิบายแถบเชิญชวนท้ายหน้า", Category: "LANDING"},
 		{Key: "landing_cta_button_text", Value: "เข้าสู่ระบบเลยตอนนี้", Description: "ข้อความปุ่มแถบเชิญชวนท้ายหน้า", Category: "LANDING"},
-		{Key: "landing_footer_text", Value: "TUNorth-Hub © 2026 โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ · LMS EdTech Platform", Description: "ข้อความส่วนท้ายเว็บ (Footer Copyright)", Category: "LANDING"},
+		{Key: "landing_footer_text", Value: "TUNorth-Hub © 2026 โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ", Description: "ข้อความส่วนท้ายเว็บ (Footer Copyright)", Category: "LANDING"},
 	}
 
 	for _, setting := range defaultSettings {

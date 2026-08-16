@@ -24,12 +24,12 @@ func NewCertificateHandler(db *database.Database) *CertificateHandler {
 	return &CertificateHandler{db: db}
 }
 
-// generateCertCode creates a readable certificate code, e.g. TUN-2026-ABCD-1234
+// generateCertCode creates a readable certificate code, e.g. TUNorth-2026-ABCD-1234
 func generateCertCode() string {
 	bytes := make([]byte, 4)
 	_, _ = rand.Read(bytes)
 	hexStr := strings.ToUpper(hex.EncodeToString(bytes))
-	return fmt.Sprintf("TUN-%d-%s-%s", time.Now().Year(), hexStr[:4], hexStr[4:])
+	return fmt.Sprintf("TUNorth-%d-%s-%s", time.Now().Year(), hexStr[:4], hexStr[4:])
 }
 
 // GetOrGenerateCertificate retrieves or generates a certificate for an enrolled student with 100% progress

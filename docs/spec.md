@@ -36,7 +36,7 @@
 * **Landing Page Management System (Landing Page CMS):** แดชบอร์ดจัดการหน้าแรกสำหรับ Admin (`/admin/landing`) รูปแบบ Card Grid Tabs 7 หมวดหมู่ (Hero, Stats, Features, Featured Courses, Steps, FAQ, CTA/Footer) พร้อมระบบจัดการรูปภาพ Hero Banner และพรีวิวแบบ Real-time บนหน้าแรก (`/`)
 * **Interactive Code Playground:** Client-Side WebAssembly (Pyodide v0.26.2 สำหรับ Python) + Monaco Code Editor รองรับการแสดงผล Console, Stderr/Stdout capture, และคำสั่ง `input()` แบบ Interactive ผ่าน `pyodide.setStdin`
 * **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมระบบ Batch Quiz Import (.xlsx / .csv), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
-* **Certificate & Verification Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมตราสัญลักษณ์ ลายเซ็นผู้บริหาร และ **Dynamic QR Code** เชื่อมโยงตรงสู่ระบบตรวจสอบความถูกต้องแบบ Real-time, รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape), พอร์ทัลค้นหาและตรวจสอบความถูกต้องสาธารณะ (`/verify`) พร้อม Search Box และกล้องสแกน QR Code (Webcam & File Upload), และหน้ารายละเอียดการรับรองรายบุคคล (`/verify/[code]`)
+* **Certificate & Verification Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUNorth-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมตราสัญลักษณ์ ลายเซ็นผู้บริหาร และ **Dynamic QR Code** เชื่อมโยงตรงสู่ระบบตรวจสอบความถูกต้องแบบ Real-time, รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape), พอร์ทัลค้นหาและตรวจสอบความถูกต้องสาธารณะ (`/verify`) พร้อม Search Box และกล้องสแกน QR Code (Webcam & File Upload), และหน้ารายละเอียดการรับรองรายบุคคล (`/verify/[code]`)
 * **DevOps & Proxy:** Nginx Reverse Proxy + Docker & Docker Compose (Production & Dev Stacks)
 
 ---
@@ -169,7 +169,7 @@
 | `id` | UUID | PRIMARY KEY | รหัสใบประกาศนียบัตร |
 | `student_id` | UUID | FOREIGN KEY -> Users(id) | นักเรียนผู้สำเร็จการศึกษา |
 | `course_id` | UUID | FOREIGN KEY -> Courses(id) | รายวิชาที่สำเร็จการศึกษา |
-| `certificate_code` | VARCHAR(100) | UNIQUE, NOT NULL | รหัสรับรอง (เช่น `TUN-2026-XXXX-XXXX`) |
+| `certificate_code` | VARCHAR(100) | UNIQUE, NOT NULL | รหัสรับรอง (เช่น `TUNorth-2026-XXXX-XXXX`) |
 | `issued_at` | TIMESTAMPTZ | Default NOW() | วันเวลาที่ออกใบประกาศนียบัตร |
 
 #### 10. SystemSettings (ตารางการตั้งค่าระบบและอัตลักษณ์)
@@ -337,7 +337,7 @@
 - [x] Implement **Quiz & Question Import Engine** (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder) [ดูแผนงานใน docs/quiz_import_system_plan.md]
 - [x] Implement **AI Quiz Generation Engine & Multi-AI Provider Architecture** (Google Gemini 3.6 Flash/Pro Multimodal, OpenAI ChatGPT GPT-4o/o3-mini, Anthropic Claude 3.5 Sonnet/Haiku, และ Custom OpenAI-Compatible เช่น DeepSeek, Groq, OpenRouter, Ollama พร้อม Strict Content Grounding, Smart Normalizer, Batch Question Saver, และ Multi-Provider Settings with Real-time Diagnostics) [ดูแผนงานใน docs/ai_quiz_generation_plan.md, docs/ai_quiz_content_grounding_plan.md และ docs/multi_ai_provider_plan.md]
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
-- [x] Implement **Certificate Generation & Verification Engine** (ระบบออกรหัสรับรอง `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อม Dynamic QR Code เชื่อมโยงตรงสู่ระบบตรวจสอบ, รองรับการสั่งพิมพ์ A4 แนวนอน 1-Page Landscape, หน้าค้นหาหลักสาธารณะ `/verify` พร้อม Search Box & กล้องสแกน QR Code Webcam/Image Upload, และหน้าตรวจสอบความถูกต้องรายบุคคล `/verify/[code]`) [ดูแผนงานใน docs/certificate_verification_enhancement_plan.md]
+- [x] Implement **Certificate Generation & Verification Engine** (ระบบออกรหัสรับรอง `TUNorth-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อม Dynamic QR Code เชื่อมโยงตรงสู่ระบบตรวจสอบ, รองรับการสั่งพิมพ์ A4 แนวนอน 1-Page Landscape, หน้าค้นหาหลักสาธารณะ `/verify` พร้อม Search Box & กล้องสแกน QR Code Webcam/Image Upload, และหน้าตรวจสอบความถูกต้องรายบุคคล `/verify/[code]`) [ดูแผนงานใน docs/certificate_verification_enhancement_plan.md]
 - [x] Implement **Lesson Time & Schedule Management System** (ระบบกำหนดระยะเวลาบทเรียน, ตารางเปิด-ปิดเนื้อหา Drip Schedule, เวลาเรียนขั้นต่ำก่อนกดจบ Anti-Skipping Timer พร้อมระบบ Pause on Window Blur & Tab Hidden via Window Focus & Page Visibility API, ระบบ Persistent Timer บันทึกเวลาสะสมลง LocalStorage ไม่สูญหายเมื่อรีเฟรชหน้าเว็บหรือเน็ตหลุด, และแสดงเวลารวมทั้งหมดของคอร์ส) [ดูแผนงานใน docs/lesson_time_system_plan.md]
 
 ### 📌 Phase 5: Admin System Settings, Branding, Governance & Landing Page CMS

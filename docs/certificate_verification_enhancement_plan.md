@@ -46,12 +46,12 @@ flowchart TD
     subgraph PublicFlow ["ฝั่งบุคคลภายนอก / ผู้ตรวจ (Public Verification Flow)"]
         P1["เข้าใช้งานหน้าแรก (Navbar / Footer)"] --> P2["หน้าค้นหาหลัก: /verify"]
         P2 --> P3{"เลือกวิธีการตรวจสอบ"}
-        P3 -->|วิธีที่ 1: พิมพ์/วางรหัส| P4["กรอกรหัส (เช่น TUN-2026-XXXX-XXXX)"]
+        P3 -->|วิธีที่ 1: พิมพ์/วางรหัส| P4["กรอกรหัส (เช่น TUNorth-2026-XXXX-XXXX)"]
         P3 -->|วิธีที่ 2: สแกนด้วยกล้อง| P5["เปิดกล้อง Webcam / สแกน QR Code"]
         
         P4 --> P6["เรียก API: GET /api/certificates/verify/:code"]
         P5 --> P6
-        S4 -.->|สแกนตรง| P7["URL: /verify/TUN-2026-XXXX-XXXX"]
+        S4 -.->|สแกนตรง| P7["URL: /verify/TUNorth-2026-XXXX-XXXX"]
         P7 --> P6
         
         P6 -->|ผลการค้นหาถูกต้อง| R1["แสดงผล Verified Certificate ตราประทับสมบูรณ์"]
@@ -90,7 +90,7 @@ flowchart TD
     - [x] ช่องกรอกรหัสขนาดใหญ่พร้อม Icon `Search` และ `ShieldCheck`
     - [x] ระบบ Auto-Uppercase และ Trim ช่องว่างอัตโนมัติขณะพิมพ์
     - [x] ปุ่ม "ตรวจสอบรหัส" (Verify Now)
-    - [x] ปุ่มตัวอย่างรหัสทดสอบ (Quick Sample Tag เช่น `TUN-2026-ABCD-1234`) เพื่อความสะดวกในการทดสอบ
+    - [x] ปุ่มตัวอย่างรหัสทดสอบ (Quick Sample Tag เช่น `TUNorth-2026-ABCD-1234`) เพื่อความสะดวกในการทดสอบ
   - [x] **Interactive Camera QR Scanner Modal / Toggle:**
     - [x] ปุ่ม "สแกนด้วยกล้อง" (Scan QR Code) พร้อม Icon `QrCode` / `Camera`
     - [x] เมื่อกดเปิด ให้เริ่มต้น `Html5QrcodeScanner` หรือ `Html5Qrcode` เพื่ออ่านค่าจากกล้อง Webcam
@@ -144,7 +144,7 @@ bun run build
 | :--- | :--- | :--- |
 | **1. Dynamic QR Code บน Modal** | เข้าสู่ระบบด้วยนักเรียนที่เรียนจบ 100% แล้วกดเปิดดูเกียรติบัตร | ปรากฏ QR Code ชัดเจนด้านล่าง เมื่อสแกนด้วยโทรศัพท์จะเปิดหน้า `/verify/[code]` ได้ตรงรหัส |
 | **2. Print Preview A4 Landscape** | กดปุ่ม "พิมพ์ / บันทึกเป็น PDF" ใน Modal เกียรติบัตร | เอกสารจัดวางพอดี 1 หน้า A4 แนวนอน โดยมี QR Code ปรากฏคมชัด |
-| **3. ค้นหาผ่าน Search Box (`/verify`)** | เข้าหน้า `http://localhost:3000/verify` แล้วพิมพ์รหัส `TUN-2026-XXXX-XXXX` | ระบบดึงข้อมูลเกียรติบัตรมาแสดงผลทันที |
+| **3. ค้นหาผ่าน Search Box (`/verify`)** | เข้าหน้า `http://localhost:3000/verify` แล้วพิมพ์รหัส `TUNorth-2026-XXXX-XXXX` | ระบบดึงข้อมูลเกียรติบัตรมาแสดงผลทันที |
 | **4. สแกน QR ด้วยกล้องในหน้า `/verify`** | กดปุ่ม "สแกนด้วยกล้อง" และส่อง QR Code เกียรติบัตร | ระบบอ่านรหัสและแสดงผลการตรวจสอบอัตโนมัติ |
-| **5. กรณีรหัสผิดพลาด** | กรอกรหัสที่ไม่มีอยู่จริง เช่น `TUN-9999-INVALID` | แสดง Alert Card สีแดงแจ้งว่าไม่พบข้อมูล |
+| **5. กรณีรหัสผิดพลาด** | กรอกรหัสที่ไม่มีอยู่จริง เช่น `TUNorth-9999-INVALID` | แสดง Alert Card สีแดงแจ้งว่าไม่พบข้อมูล |
 | **6. เมนูนำทางบน Navbar & Footer** | คลิกปุ่ม "ตรวจสอบเกียรติบัตร" จาก Navbar และ Footer หน้าแรก | นำทางไปยัง `/verify` ได้อย่างราบรื่น |

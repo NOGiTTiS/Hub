@@ -292,7 +292,7 @@ export default function CertificateSearchPortalPage() {
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="เช่น TUN-2026-XXXX-XXXX"
+                  placeholder="เช่น TUNorth-2026-XXXX-XXXX"
                   className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-sm sm:text-base tracking-wider placeholder:font-sans placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                 />
                 {code && (
@@ -341,7 +341,7 @@ export default function CertificateSearchPortalPage() {
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5 text-[11px]">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              รูปแบบรหัสมาตรฐาน: <strong className="font-mono text-slate-700 dark:text-slate-300">TUN-YYYY-XXXX-XXXX</strong>
+              รูปแบบรหัสมาตรฐาน: <strong className="font-mono text-slate-700 dark:text-slate-300">TUNorth-YYYY-XXXX-XXXX</strong>
             </span>
             <span className="text-[11px]">
               รองรับทั้งการพิมพ์รหัส, สแกนผ่านกล้อง และอัปโหลดภาพ QR
