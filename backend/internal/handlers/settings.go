@@ -327,80 +327,210 @@ func (h *SettingsHandler) GetSystemHealth(c *fiber.Ctx) error {
 }
 
 // TestAIConnection tests the provided or saved Gemini API key
+// TestAIConnection validates AI API Key connection and returns latency
 func (h *SettingsHandler) TestAIConnection(c *fiber.Ctx) error {
 	var body struct {
-		APIKey string `json:"api_key"`
-		Model  string `json:"model"`
+		Provider string `json:"provider"`
+		APIKey   string `json:"api_key"`
+		Model    string `json:"model"`
+		BaseURL  string `json:"base_url"`
 	}
-	_ = c.BodyParser(&body)
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "ข้อมูลคำขอไม่ถูกต้อง",
+		})
+	}
+
+	provider := strings.ToLower(strings.TrimSpace(body.Provider))
+	if provider == "" {
+		provider = "gemini"
+	}
 
 	apiKey := strings.TrimSpace(body.APIKey)
-	if apiKey == "" {
-		// Fallback to database
-		var setting models.SystemSetting
-		if err := h.db.DB.Where("key = ?", "ai_gemini_api_key").First(&setting).Error; err == nil && setting.Value != "" {
-			apiKey = strings.TrimSpace(setting.Value)
-		}
-	}
-	if apiKey == "" && h.cfg.GeminiAPIKey != "" {
+	if apiKey == "" && provider == "gemini" && h.cfg.GeminiAPIKey != "" {
 		apiKey = strings.TrimSpace(h.cfg.GeminiAPIKey)
 	}
 
-	if apiKey == "" {
+	if apiKey == "" && provider != "custom" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "ไม่พบ API Key (กรุณากรอก API Key ก่อนทดสอบ)",
+			"message": fmt.Sprintf("ไม่พบ API Key สำหรับ %s (กรุณากรอก API Key ก่อนทดสอบ)", strings.ToUpper(provider)),
 		})
 	}
 
 	model := strings.TrimSpace(body.Model)
-	if model == "" {
-		model = "gemini-3.6-flash"
-	}
-
-	// Prepare Gemini Interactions API test request (Google's latest standard)
-	apiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta2/interactions?key=%s", apiKey)
-	reqPayload := map[string]interface{}{
-		"model": model,
-		"input": "Ping",
-	}
-
-	jsonBytes, err := json.Marshal(reqPayload)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"message": "เกิดข้อผิดพลาดในการสร้างคำขอเชื่อมต่อ",
-		})
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"message": "เกิดข้อผิดพลาดในการส่งคำขอ",
-		})
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-goog-api-key", apiKey)
-
 	client := &http.Client{}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
-			"success": false,
-			"message": fmt.Sprintf("ไม่สามารถเชื่อมต่อกับ Google Gemini API ได้: %v", err),
-		})
-	}
-	defer resp.Body.Close()
+	start := time.Now()
 
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		// If Interactions API returned error, try fallback to v1beta generateContent
-		fallbackURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, apiKey)
-		fallbackPayload := map[string]interface{}{
+	switch provider {
+	case "openai":
+		if model == "" {
+			model = "gpt-4o-mini"
+		}
+		apiURL := "https://api.openai.com/v1/chat/completions"
+		reqPayload := map[string]interface{}{
+			"model": model,
+			"messages": []map[string]interface{}{
+				{"role": "user", "content": "Ping"},
+			},
+			"max_tokens": 5,
+		}
+		jsonBytes, _ := json.Marshal(reqPayload)
+		req, _ := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+
+		resp, err := client.Do(req)
+		latency := time.Since(start).Milliseconds()
+		if err != nil {
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("ไม่สามารถเชื่อมต่อกับ OpenAI API ได้: %v", err),
+			})
+		}
+		defer resp.Body.Close()
+		respBytes, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			var errData map[string]interface{}
+			_ = json.Unmarshal(respBytes, &errData)
+			errMsg := fmt.Sprintf("OpenAI API ตอบกลับรหัส %d", resp.StatusCode)
+			if e, ok := errData["error"].(map[string]interface{}); ok {
+				if msg, ok := e["message"].(string); ok {
+					errMsg = msg
+				}
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("การตรวจสอบ OpenAI API Key ล้มเหลว: %s", errMsg),
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success":    true,
+			"message":    fmt.Sprintf("เชื่อมต่อกับ OpenAI API (%s) สำเร็จ! (เวลาตอบสนอง %d ms)", model, latency),
+			"latency_ms": latency,
+		})
+
+	case "anthropic":
+		if model == "" {
+			model = "claude-3-5-haiku-latest"
+		}
+		apiURL := "https://api.anthropic.com/v1/messages"
+		reqPayload := map[string]interface{}{
+			"model":      model,
+			"max_tokens": 10,
+			"messages": []map[string]interface{}{
+				{"role": "user", "content": "Ping"},
+			},
+		}
+		jsonBytes, _ := json.Marshal(reqPayload)
+		req, _ := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", apiKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+
+		resp, err := client.Do(req)
+		latency := time.Since(start).Milliseconds()
+		if err != nil {
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("ไม่สามารถเชื่อมต่อกับ Anthropic Claude API ได้: %v", err),
+			})
+		}
+		defer resp.Body.Close()
+		respBytes, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			var errData map[string]interface{}
+			_ = json.Unmarshal(respBytes, &errData)
+			errMsg := fmt.Sprintf("Anthropic API ตอบกลับรหัส %d", resp.StatusCode)
+			if e, ok := errData["error"].(map[string]interface{}); ok {
+				if msg, ok := e["message"].(string); ok {
+					errMsg = msg
+				}
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("การตรวจสอบ Anthropic API Key ล้มเหลว: %s", errMsg),
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success":    true,
+			"message":    fmt.Sprintf("เชื่อมต่อกับ Anthropic Claude API (%s) สำเร็จ! (เวลาตอบสนอง %d ms)", model, latency),
+			"latency_ms": latency,
+		})
+
+	case "custom":
+		baseURL := strings.TrimRight(strings.TrimSpace(body.BaseURL), "/")
+		if baseURL == "" {
+			baseURL = "https://api.deepseek.com/v1"
+		}
+		if model == "" {
+			model = "deepseek-chat"
+		}
+		apiURL := baseURL
+		if !strings.HasSuffix(apiURL, "/chat/completions") {
+			apiURL = fmt.Sprintf("%s/chat/completions", baseURL)
+		}
+
+		reqPayload := map[string]interface{}{
+			"model": model,
+			"messages": []map[string]interface{}{
+				{"role": "user", "content": "Ping"},
+			},
+			"max_tokens": 5,
+		}
+		jsonBytes, _ := json.Marshal(reqPayload)
+		req, _ := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+		req.Header.Set("Content-Type", "application/json")
+		if apiKey != "" {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+		}
+
+		resp, err := client.Do(req)
+		latency := time.Since(start).Milliseconds()
+		if err != nil {
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("ไม่สามารถเชื่อมต่อกับ Custom Server (%s) ได้: %v", baseURL, err),
+			})
+		}
+		defer resp.Body.Close()
+		respBytes, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			var errData map[string]interface{}
+			_ = json.Unmarshal(respBytes, &errData)
+			errMsg := fmt.Sprintf("Server ตอบกลับรหัส %d (%s)", resp.StatusCode, string(respBytes))
+			if e, ok := errData["error"].(map[string]interface{}); ok {
+				if msg, ok := e["message"].(string); ok {
+					errMsg = msg
+				}
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("การตรวจสอบ Custom Provider ล้มเหลว: %s", errMsg),
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success":    true,
+			"message":    fmt.Sprintf("เชื่อมต่อกับ Custom Provider (%s - %s) สำเร็จ! (เวลาตอบสนอง %d ms)", baseURL, model, latency),
+			"latency_ms": latency,
+		})
+
+	default: // gemini
+		if model == "" {
+			model = "gemini-3.6-flash"
+		}
+		genURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, apiKey)
+		genPayload := map[string]interface{}{
 			"contents": []map[string]interface{}{
 				{
 					"parts": []map[string]interface{}{
@@ -409,40 +539,67 @@ func (h *SettingsHandler) TestAIConnection(c *fiber.Ctx) error {
 				},
 			},
 		}
-		fallbackBytes, _ := json.Marshal(fallbackPayload)
-		fbReq, fbErr := http.NewRequestWithContext(ctx, "POST", fallbackURL, bytes.NewBuffer(fallbackBytes))
-		if fbErr == nil {
-			fbReq.Header.Set("Content-Type", "application/json")
-			fbReq.Header.Set("x-goog-api-key", apiKey)
-			fbResp, fbErr := client.Do(fbReq)
-			if fbErr == nil {
-				defer fbResp.Body.Close()
-				if fbResp.StatusCode == http.StatusOK {
-					return c.JSON(fiber.Map{
-						"success": true,
-						"message": fmt.Sprintf("เชื่อมต่อกับ Google Gemini API (%s) สำเร็จ!", model),
-					})
+		jsonBytes, _ := json.Marshal(genPayload)
+		req, _ := http.NewRequestWithContext(ctx, "POST", genURL, bytes.NewBuffer(jsonBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-goog-api-key", apiKey)
+
+		resp, err := client.Do(req)
+		latency := time.Since(start).Milliseconds()
+		if err == nil && resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			return c.JSON(fiber.Map{
+				"success":    true,
+				"message":    fmt.Sprintf("เชื่อมต่อกับ Google Gemini API (%s) สำเร็จ! (เวลาตอบสนอง %d ms)", model, latency),
+				"latency_ms": latency,
+			})
+		}
+
+		// Fallback to Interactions API test
+		if resp != nil {
+			resp.Body.Close()
+		}
+		interURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta2/interactions?key=%s", apiKey)
+		interPayload := map[string]interface{}{
+			"model": model,
+			"input": "Ping",
+		}
+		interBytes, _ := json.Marshal(interPayload)
+		interReq, _ := http.NewRequestWithContext(ctx, "POST", interURL, bytes.NewBuffer(interBytes))
+		interReq.Header.Set("Content-Type", "application/json")
+		interReq.Header.Set("x-goog-api-key", apiKey)
+
+		interResp, interErr := client.Do(interReq)
+		interLatency := time.Since(start).Milliseconds()
+		if interErr != nil {
+			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("ไม่สามารถเชื่อมต่อกับ Google Gemini API ได้: %v", interErr),
+			})
+		}
+		defer interResp.Body.Close()
+		respBody, _ := io.ReadAll(interResp.Body)
+
+		if interResp.StatusCode != http.StatusOK && interResp.StatusCode != http.StatusCreated {
+			var errData map[string]interface{}
+			_ = json.Unmarshal(respBody, &errData)
+			errMsg := fmt.Sprintf("Google API ตอบกลับด้วยรหัส %d", interResp.StatusCode)
+			if e, ok := errData["error"].(map[string]interface{}); ok {
+				if msg, ok := e["message"].(string); ok {
+					errMsg = msg
 				}
 			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": fmt.Sprintf("การตรวจสอบ API Key ล้มเหลว: %s", errMsg),
+			})
 		}
 
-		var errData map[string]interface{}
-		_ = json.Unmarshal(respBody, &errData)
-		errMsg := fmt.Sprintf("Google API ตอบกลับด้วยรหัส %d", resp.StatusCode)
-		if e, ok := errData["error"].(map[string]interface{}); ok {
-			if msg, ok := e["message"].(string); ok {
-				errMsg = msg
-			}
-		}
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": fmt.Sprintf("การตรวจสอบ API Key ล้มเหลว: %s", errMsg),
+		return c.JSON(fiber.Map{
+			"success":    true,
+			"message":    fmt.Sprintf("เชื่อมต่อกับ Google Gemini API (%s) สำเร็จ! (เวลาตอบสนอง %d ms)", model, interLatency),
+			"latency_ms": interLatency,
 		})
 	}
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": fmt.Sprintf("เชื่อมต่อกับ Google Gemini Interactions API (%s) สำเร็จ!", model),
-	})
 }
 

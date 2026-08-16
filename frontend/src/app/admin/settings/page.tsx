@@ -290,25 +290,47 @@ export default function AdminSettingsPage() {
   }
 
   const handleTestAI = async () => {
-    if (!settings.ai_gemini_api_key && !settings.ai_gemini_api_key.trim()) {
-      toast.error("กรุณากรอก Google Gemini API Key ก่อนทดสอบ")
+    const provider = settings.ai_provider || "gemini"
+    let apiKey = ""
+    let model = ""
+    let baseUrl = ""
+
+    if (provider === "openai") {
+      apiKey = settings.ai_openai_api_key || ""
+      model = settings.ai_openai_model || "gpt-4o-mini"
+    } else if (provider === "anthropic") {
+      apiKey = settings.ai_anthropic_api_key || ""
+      model = settings.ai_anthropic_model || "claude-3-5-haiku-latest"
+    } else if (provider === "custom") {
+      apiKey = settings.ai_custom_api_key || ""
+      model = settings.ai_custom_model || "deepseek-chat"
+      baseUrl = settings.ai_custom_base_url || "https://api.deepseek.com/v1"
+    } else {
+      apiKey = settings.ai_gemini_api_key || ""
+      model = settings.ai_gemini_model || settings.ai_default_model || "gemini-3.6-flash"
+    }
+
+    if (!apiKey.trim() && provider !== "custom") {
+      toast.error(`กรุณากรอก API Key สำหรับ ${provider.toUpperCase()} ก่อนทดสอบ`)
       return
     }
 
     setTestingAI(true)
     try {
-      const res = await apiFetch("/api/admin/settings/test-ai", {
+      const res = await apiFetch<{ message: string; latency_ms?: number }>("/api/admin/settings/test-ai", {
         method: "POST",
         body: JSON.stringify({
-          api_key: settings.ai_gemini_api_key,
-          model: settings.ai_default_model || "gemini-3.6-flash",
+          provider,
+          api_key: apiKey,
+          model,
+          base_url: baseUrl,
         }),
       })
 
       if (res.success) {
-        toast.success(res.message || "เชื่อมต่อกับ Google Gemini API สำเร็จ!")
+        toast.success(res.message || "เชื่อมต่อกับ AI API สำเร็จ!")
       } else {
-        toast.error(res.message || "การเชื่อมต่อล้มเหลว กรุณาตรวจสอบ API Key")
+        toast.error(res.message || "การเชื่อมต่อล้มเหลว กรุณาตรวจสอบ API Key / Model")
       }
     } catch {
       toast.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์เพื่อทดสอบ API ได้")
@@ -1183,16 +1205,16 @@ export default function AdminSettingsPage() {
               </div>
             )}
 
-            {/* ----------------- TAB 5: AI & SMART ASSISTANT (GEMINI CONFIG) ----------------- */}
+            {/* ----------------- TAB 5: MULTI-AI & SMART ASSISTANT CONFIG ----------------- */}
             {activeTab === "ai" && (
               <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-amber-500" />
-                    การตั้งค่า AI และระบบผู้ช่วยอัจฉริยะ (Google Gemini)
+                    การตั้งค่าระบบผู้ช่วยอัจฉริยะ (Multi-AI Providers)
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    เชื่อมต่อ Google Gemini API เพื่อเปิดใช้งานฟีเจอร์สร้างแบบทดสอบอัตโนมัติจากเนื้อหาบทเรียนสำหรับครูผู้สอน
+                    เลือกและกำหนดค่าผู้ให้บริการ AI ที่ต้องการใช้งานสำหรับระบบสร้างแบบทดสอบอัตโนมัติ (AI Quiz Generator)
                   </p>
                 </div>
 
@@ -1205,7 +1227,7 @@ export default function AdminSettingsPage() {
                         เปิดใช้งานระบบ AI ช่วยสร้างแบบทดสอบ (AI Quiz Generator)
                       </span>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        เมื่อเปิดใช้งาน ครูผู้สอนจะสามารถกดปุ่ม "🤖 สร้างด้วย AI" ในตัวจัดการแบบทดสอบ (Quiz Builder) ได้
+                        เมื่อเปิดใช้งาน ครูผู้สอนจะสามารถกดปุ่ม &quot;🤖 สร้างด้วย AI&quot; ในตัวจัดการแบบทดสอบ (Quiz Builder) ได้
                       </span>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -1222,114 +1244,335 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
 
-                {/* GEMINI CONFIG CARD */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <Bot className="w-3.5 h-3.5 text-brand-500" />
-                        ผู้ให้บริการ AI (AI Provider)
-                      </label>
-                      <select
-                        value={settings.ai_provider || "gemini"}
-                        onChange={(e) => handleInputChange("ai_provider", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                      >
-                        <option value="gemini">Google Gemini (ทางการ)</option>
-                      </select>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        รองรับการประมวลผลข้อความและบริบทบทเรียนภาษาไทยได้อย่างแม่นยำ
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
-                        โมเดล AI เริ่มต้น (Default Model)
-                      </label>
-                      <select
-                        value={settings.ai_default_model || "gemini-3.6-flash"}
-                        onChange={(e) => handleInputChange("ai_default_model", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                      >
-                        <option value="gemini-3.6-flash">Gemini 3.6 Flash (แนะนำ - Interactions API ล่าสุด รวดเร็วและแม่นยำสูง)</option>
-                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (ความเร็วสูงสุด ประหยัด Token)</option>
-                        <option value="gemini-3.6-pro">Gemini 3.6 Pro (ประสิทธิภาพสูงสุด เหมาะกับเนื้อหายาว)</option>
-                      </select>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        ใช้งาน Google Gemini Interactions API มาตรฐานล่าสุดสำหรับการประมวลผลคำถาม
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* API KEY INPUT */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-amber-500" />
-                        Google Gemini API Key <span className="text-rose-500">*</span>
-                      </label>
-                      <a
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 hover:underline"
-                      >
-                        <span>ขอรับ API Key ฟรี (Google AI Studio)</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type={showAPIKey ? "text" : "password"}
-                          value={settings.ai_gemini_api_key || ""}
-                          onChange={(e) => handleInputChange("ai_gemini_api_key", e.target.value)}
-                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-mono"
-                          placeholder="AIzaSy..."
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowAPIKey(!showAPIKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                {/* PROVIDER SELECTOR CARDS */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Bot className="w-4 h-4 text-brand-500" />
+                    เลือกผู้ให้บริการ AI หลัก (Active AI Provider)
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      {
+                        id: "gemini",
+                        name: "Google Gemini",
+                        tag: "แนะนำ / โควตาสูง",
+                        desc: "Gemini 3.6 Flash / Pro (Multimodal)",
+                        badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
+                        activeBorder: "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20",
+                      },
+                      {
+                        id: "openai",
+                        name: "OpenAI (ChatGPT)",
+                        tag: "ยอดนิยม",
+                        desc: "GPT-4o / GPT-4o Mini / o3-mini",
+                        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+                        activeBorder: "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/20",
+                      },
+                      {
+                        id: "anthropic",
+                        name: "Anthropic Claude",
+                        tag: "วิเคราะห์ลึกซึ้ง",
+                        desc: "Claude 3.5 Sonnet / Haiku",
+                        badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+                        activeBorder: "border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/20 dark:bg-purple-950/20",
+                      },
+                      {
+                        id: "custom",
+                        name: "Custom / DeepSeek",
+                        tag: "อิสระ 100%",
+                        desc: "DeepSeek, Groq, Ollama, OpenRouter",
+                        badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+                        activeBorder: "border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/20 dark:bg-amber-950/20",
+                      },
+                    ].map((p) => {
+                      const isSelected = (settings.ai_provider || "gemini") === p.id
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => handleInputChange("ai_provider", p.id)}
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                            isSelected
+                              ? p.activeBorder
+                              : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900"
+                          }`}
                         >
-                          {showAPIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleTestAI}
-                        disabled={testingAI || !settings.ai_gemini_api_key}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
-                      >
-                        {testingAI ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" />
-                            กำลังทดสอบ...
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="w-3.5 h-3.5 text-amber-600" />
-                            ทดสอบการเชื่อมต่อ API
-                          </>
-                        )}
-                      </button>
-                    </div>
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {p.name}
+                            </span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${p.badgeClass}`}>
+                              {p.tag}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                            {p.desc}
+                          </p>
+                        </div>
+                      )
+                    })}
                   </div>
+                </div>
 
-                  {/* INFO BOX */}
-                  <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 flex items-start gap-3">
-                    <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                      <p className="font-bold">ขั้นตอนการตั้งค่า Google Gemini API Key สำหรับโรงเรียน:</p>
-                      <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-amber-800/90 dark:text-amber-300/90">
-                        <li>เข้าสู่ระบบที่ <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-semibold">Google AI Studio</a> ด้วยบัญชี Google</li>
-                        <li>กดปุ่ม <strong>Create API Key</strong> และคัดลอกคีย์ขึ้นต้นด้วย <code className="font-mono bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded">AIzaSy...</code></li>
-                        <li>นำคีย์มากรอกลงในช่องด้านบน แล้วกด <strong>"ทดสอบการเชื่อมต่อ API"</strong></li>
-                        <li>กดปุ่ม <strong>"บันทึกการตั้งค่า"</strong> ด้านบนขวาเพื่อเริ่มใช้งาน</li>
-                      </ol>
+                {/* DEDICATED PROVIDER CONFIG CARD */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5">
+                  
+                  {/* --- 1. GOOGLE GEMINI CONFIG --- */}
+                  {(settings.ai_provider || "gemini") === "gemini" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-amber-500" />
+                            โมเดล Google Gemini
+                          </label>
+                          <select
+                            value={settings.ai_gemini_model || settings.ai_default_model || "gemini-3.6-flash"}
+                            onChange={(e) => {
+                              handleInputChange("ai_gemini_model", e.target.value)
+                              handleInputChange("ai_default_model", e.target.value)
+                            }}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                          >
+                            <option value="gemini-3.6-flash">Gemini 3.6 Flash (แนะนำ - Interactions API รวดเร็วและแม่นยำสูง)</option>
+                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (ประหยัด Token สูงสุด)</option>
+                            <option value="gemini-3.6-pro">Gemini 3.6 Pro (ประสิทธิภาพสูงสุด เหมาะกับเนื้อหายาว)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <Key className="w-3.5 h-3.5 text-amber-500" />
+                              Google Gemini API Key
+                            </span>
+                            <a
+                              href="https://aistudio.google.com/app/apikey"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-brand-600 dark:text-brand-400 hover:underline"
+                            >
+                              <span>ขอรับ Key ฟรี (AI Studio)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showAPIKey ? "text" : "password"}
+                              value={settings.ai_gemini_api_key || ""}
+                              onChange={(e) => handleInputChange("ai_gemini_api_key", e.target.value)}
+                              className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                              placeholder="AIzaSy..."
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowAPIKey(!showAPIKey)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              {showAPIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* --- 2. OPENAI (CHATGPT) CONFIG --- */}
+                  {settings.ai_provider === "openai" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-emerald-500" />
+                            โมเดล OpenAI
+                          </label>
+                          <select
+                            value={settings.ai_openai_model || "gpt-4o-mini"}
+                            onChange={(e) => handleInputChange("ai_openai_model", e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          >
+                            <option value="gpt-4o-mini">GPT-4o Mini (แนะนำ - คุ้มค่า รวดเร็ว และฉลาดสูง)</option>
+                            <option value="gpt-4o">GPT-4o (โมเดลเรือธง ความแม่นยำสูง)</option>
+                            <option value="o3-mini">o3-mini (โมเดลการใช้เหตุผลขั้นสูง)</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <Key className="w-3.5 h-3.5 text-emerald-500" />
+                              OpenAI API Key
+                            </span>
+                            <a
+                              href="https://platform.openai.com/api-keys"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline"
+                            >
+                              <span>ขอรับ API Key (OpenAI Platform)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showAPIKey ? "text" : "password"}
+                              value={settings.ai_openai_api_key || ""}
+                              onChange={(e) => handleInputChange("ai_openai_api_key", e.target.value)}
+                              className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              placeholder="sk-proj-..."
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowAPIKey(!showAPIKey)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              {showAPIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* --- 3. ANTHROPIC CLAUDE CONFIG --- */}
+                  {settings.ai_provider === "anthropic" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-purple-500" />
+                            โมเดล Anthropic Claude
+                          </label>
+                          <select
+                            value={settings.ai_anthropic_model || "claude-3-5-haiku-latest"}
+                            onChange={(e) => handleInputChange("ai_anthropic_model", e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                          >
+                            <option value="claude-3-5-haiku-latest">Claude 3.5 Haiku (แนะนำ - ความเร็วสูง ประหยัด)</option>
+                            <option value="claude-3-5-sonnet-latest">Claude 3.5 Sonnet (ฉลาดที่สุด ให้เหตุผลยอดเยี่ยม)</option>
+                            <option value="claude-3-opus-latest">Claude 3 Opus</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <Key className="w-3.5 h-3.5 text-purple-500" />
+                              Anthropic API Key
+                            </span>
+                            <a
+                              href="https://console.anthropic.com/settings/keys"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-purple-600 dark:text-purple-400 hover:underline"
+                            >
+                              <span>ขอรับ API Key (Anthropic Console)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showAPIKey ? "text" : "password"}
+                              value={settings.ai_anthropic_api_key || ""}
+                              onChange={(e) => handleInputChange("ai_anthropic_api_key", e.target.value)}
+                              className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                              placeholder="sk-ant-..."
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowAPIKey(!showAPIKey)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              {showAPIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* --- 4. CUSTOM / OPENAI-COMPATIBLE CONFIG --- */}
+                  {settings.ai_provider === "custom" && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Custom Base URL
+                          </label>
+                          <input
+                            type="text"
+                            value={settings.ai_custom_base_url || ""}
+                            onChange={(e) => handleInputChange("ai_custom_base_url", e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                            placeholder="https://api.deepseek.com/v1"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            เช่น https://api.deepseek.com/v1 หรือ http://localhost:11434/v1 สำหรับ Ollama
+                          </p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            ชื่อโมเดล (Model Name)
+                          </label>
+                          <input
+                            type="text"
+                            value={settings.ai_custom_model || ""}
+                            onChange={(e) => handleInputChange("ai_custom_model", e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                            placeholder="deepseek-chat หรือ llama3.3"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            API Key (ถ้ามี)
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showAPIKey ? "text" : "password"}
+                              value={settings.ai_custom_api_key || ""}
+                              onChange={(e) => handleInputChange("ai_custom_api_key", e.target.value)}
+                              className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                              placeholder="sk-..."
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowAPIKey(!showAPIKey)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              {showAPIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TEST CONNECTION ACTION BAR */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      ระบบจะทดสอบส่งข้อความ Ping ไปยัง <strong>{(settings.ai_provider || "gemini").toUpperCase()}</strong> เพื่อตรวจสอบการเชื่อมต่อ
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={handleTestAI}
+                      disabled={testingAI}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                    >
+                      {testingAI ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          กำลังทดสอบการเชื่อมต่อ...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3.5 h-3.5" />
+                          ทดสอบการเชื่อมต่อ Provider นี้
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>

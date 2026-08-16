@@ -142,11 +142,19 @@ func SeedDefaultSettings(db *gorm.DB) error {
 		{Key: "site_favicon_url", Value: "", Description: "URL หรือรูปภาพ Favicon บนแท็บเบราว์เซอร์", Category: "BRANDING"},
 		{Key: "theme_primary_color", Value: "#2563eb", Description: "รหัสสีหลักของระบบ (Primary Theme Hex Color)", Category: "BRANDING"},
 
-		// AI & Smart Assistant Configuration
+		// AI & Smart Assistant Configuration (Multi-Provider Support)
 		{Key: "ai_enabled", Value: "true", Description: "เปิด/ปิด การใช้งานระบบ AI ช่วยสร้างแบบทดสอบ", Category: "AI"},
-		{Key: "ai_provider", Value: "gemini", Description: "ผู้ให้บริการ AI (gemini)", Category: "AI"},
+		{Key: "ai_provider", Value: "gemini", Description: "ผู้ให้บริการ AI หลัก (gemini, openai, anthropic, custom)", Category: "AI"},
+		{Key: "ai_default_model", Value: "gemini-3.6-flash", Description: "โมเดล AI เริ่มต้น", Category: "AI"},
 		{Key: "ai_gemini_api_key", Value: "", Description: "Google Gemini API Key", Category: "AI"},
-		{Key: "ai_default_model", Value: "gemini-3.6-flash", Description: "โมเดล AI เริ่มต้น (เช่น gemini-3.6-flash, gemini-2.5-flash-lite)", Category: "AI"},
+		{Key: "ai_gemini_model", Value: "gemini-3.6-flash", Description: "โมเดล Google Gemini", Category: "AI"},
+		{Key: "ai_openai_api_key", Value: "", Description: "OpenAI API Key", Category: "AI"},
+		{Key: "ai_openai_model", Value: "gpt-4o-mini", Description: "โมเดล OpenAI (gpt-4o, gpt-4o-mini, o3-mini)", Category: "AI"},
+		{Key: "ai_anthropic_api_key", Value: "", Description: "Anthropic Claude API Key", Category: "AI"},
+		{Key: "ai_anthropic_model", Value: "claude-3-5-haiku-latest", Description: "โมเดล Anthropic Claude", Category: "AI"},
+		{Key: "ai_custom_api_key", Value: "", Description: "Custom / DeepSeek / Groq / OpenRouter API Key", Category: "AI"},
+		{Key: "ai_custom_base_url", Value: "https://api.deepseek.com/v1", Description: "Base URL สำหรับ Custom OpenAI-Compatible Provider", Category: "AI"},
+		{Key: "ai_custom_model", Value: "deepseek-chat", Description: "ชื่อโมเดลสำหรับ Custom Provider", Category: "AI"},
 
 		// Dynamic Landing Page Management
 		{Key: "landing_hero_badge", Value: "ระบบจัดการเรียนรู้ดิจิทัล LMS EdTech v1.0", Description: "ข้อความป้ายกำกับด้านบนหัวข้อ Hero", Category: "LANDING"},

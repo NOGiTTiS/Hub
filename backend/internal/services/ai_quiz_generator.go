@@ -31,6 +31,7 @@ type AIQuizGenRequest struct {
 	CustomContext      string `json:"custom_context"`      // Extra text context
 	IncludeLessonText  bool   `json:"include_lesson_text"`
 	IncludeLessonMedia bool   `json:"include_lesson_media"` // Include PDF / Video attached to lesson
+	Provider           string `json:"provider,omitempty"`   // gemini, openai, anthropic, custom
 	Model              string `json:"model,omitempty"`
 
 	// Optional direct file upload in modal
@@ -51,12 +52,13 @@ type AIQuizQuestionItem struct {
 
 // AIQuizGenResult represents the generated quiz structure
 type AIQuizGenResult struct {
-	QuizTitle   string               `json:"quiz_title"`
-	LessonID    string               `json:"lesson_id"`
-	LessonTitle string               `json:"lesson_title"`
-	Questions   []AIQuizQuestionItem `json:"questions"`
-	ModelUsed   string               `json:"model_used"`
-	GeneratedAt time.Time            `json:"generated_at"`
+	QuizTitle    string               `json:"quiz_title"`
+	LessonID     string               `json:"lesson_id"`
+	LessonTitle  string               `json:"lesson_title"`
+	Questions    []AIQuizQuestionItem `json:"questions"`
+	ProviderUsed string               `json:"provider_used"`
+	ModelUsed    string               `json:"model_used"`
+	GeneratedAt  time.Time            `json:"generated_at"`
 }
 
 // MediaPart represents an inline multimodal payload (e.g. PDF or Video)
@@ -66,57 +68,93 @@ type MediaPart struct {
 	SourceName string
 }
 
-// Interactions API response structures
-type interactionStepContent struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+// AIProviderConfig contains the full resolved AI configuration
+type AIProviderConfig struct {
+	Enabled  bool
+	Provider string // gemini, openai, anthropic, custom
+	APIKey   string
+	Model    string
+	BaseURL  string
 }
 
-type interactionStep struct {
-	Type    string                   `json:"type"`
-	Status  string                   `json:"status"`
-	Content []interactionStepContent `json:"content"`
-}
-
-type interactionResponse struct {
-	ID    string            `json:"id"`
-	Steps []interactionStep `json:"steps"`
-	Error *struct {
-		Message string `json:"message"`
-		Code    int    `json:"code"`
-	} `json:"error,omitempty"`
-}
-
-// GetAIGeminiConfig retrieves API key and model from DB with fallback
-func GetAIGeminiConfig(db *gorm.DB, envKey string) (apiKey string, model string, enabled bool) {
-	enabled = true
-	model = "gemini-3.6-flash"
+// GetAIConfig retrieves active AI provider configuration from DB with fallbacks
+func GetAIConfig(db *gorm.DB, envKey string) AIProviderConfig {
+	cfg := AIProviderConfig{
+		Enabled:  true,
+		Provider: "gemini",
+		Model:    "gemini-3.6-flash",
+		BaseURL:  "https://api.deepseek.com/v1",
+	}
 
 	var settings []models.SystemSetting
+	settingsMap := make(map[string]string)
 	if err := db.Where("category = ? OR key LIKE ?", "AI", "ai_%").Find(&settings).Error; err == nil {
 		for _, s := range settings {
-			switch s.Key {
-			case "ai_gemini_api_key":
-				if s.Value != "" {
-					apiKey = strings.TrimSpace(s.Value)
-				}
-			case "ai_default_model":
-				if s.Value != "" {
-					model = strings.TrimSpace(s.Value)
-				}
-			case "ai_enabled":
-				if strings.ToLower(strings.TrimSpace(s.Value)) == "false" {
-					enabled = false
-				}
-			}
+			settingsMap[s.Key] = strings.TrimSpace(s.Value)
 		}
 	}
 
-	if apiKey == "" && envKey != "" {
-		apiKey = strings.TrimSpace(envKey)
+	if val, ok := settingsMap["ai_enabled"]; ok {
+		if strings.ToLower(val) == "false" {
+			cfg.Enabled = false
+		}
 	}
 
-	return apiKey, model, enabled
+	if val, ok := settingsMap["ai_provider"]; ok && val != "" {
+		cfg.Provider = strings.ToLower(val)
+	}
+
+	// Resolve provider-specific keys and models
+	switch cfg.Provider {
+	case "openai":
+		cfg.APIKey = settingsMap["ai_openai_api_key"]
+		cfg.Model = settingsMap["ai_openai_model"]
+		if cfg.Model == "" {
+			cfg.Model = "gpt-4o-mini"
+		}
+		cfg.BaseURL = "https://api.openai.com/v1"
+
+	case "anthropic":
+		cfg.APIKey = settingsMap["ai_anthropic_api_key"]
+		cfg.Model = settingsMap["ai_anthropic_model"]
+		if cfg.Model == "" {
+			cfg.Model = "claude-3-5-haiku-latest"
+		}
+		cfg.BaseURL = "https://api.anthropic.com/v1"
+
+	case "custom":
+		cfg.APIKey = settingsMap["ai_custom_api_key"]
+		cfg.Model = settingsMap["ai_custom_model"]
+		if cfg.Model == "" {
+			cfg.Model = "deepseek-chat"
+		}
+		cfg.BaseURL = settingsMap["ai_custom_base_url"]
+		if cfg.BaseURL == "" {
+			cfg.BaseURL = "https://api.deepseek.com/v1"
+		}
+
+	default: // gemini
+		cfg.Provider = "gemini"
+		cfg.APIKey = settingsMap["ai_gemini_api_key"]
+		if cfg.APIKey == "" && envKey != "" {
+			cfg.APIKey = strings.TrimSpace(envKey)
+		}
+		cfg.Model = settingsMap["ai_gemini_model"]
+		if cfg.Model == "" {
+			cfg.Model = settingsMap["ai_default_model"]
+		}
+		if cfg.Model == "" {
+			cfg.Model = "gemini-3.6-flash"
+		}
+	}
+
+	return cfg
+}
+
+// GetAIGeminiConfig preserves backward compatibility
+func GetAIGeminiConfig(db *gorm.DB, envKey string) (apiKey string, model string, enabled bool) {
+	cfg := GetAIConfig(db, envKey)
+	return cfg.APIKey, cfg.Model, cfg.Enabled
 }
 
 // CleanHTMLToText strips HTML tags and decodes entities into clean readable text
@@ -137,7 +175,7 @@ func CleanHTMLToText(htmlStr string) string {
 	reTags := regexp.MustCompile(`<[^>]+>`)
 	text = reTags.ReplaceAllString(text, " ")
 
-	// Decode HTML entities (e.g. &nbsp;, &amp;, &quot;, &lt;, &gt;)
+	// Decode HTML entities
 	text = html.UnescapeString(text)
 
 	// Clean up multiple spaces and empty lines
@@ -153,22 +191,23 @@ func CleanHTMLToText(htmlStr string) string {
 	return strings.Join(cleanedLines, "\n")
 }
 
-// GenerateQuizFromLesson builds context, reads multimodal files (PDF/Video), calls Gemini API, and normalizes output
+// GenerateQuizFromLesson builds context, reads multimodal files (PDF/Video), calls selected AI Provider, and normalizes output
 func GenerateQuizFromLesson(ctx context.Context, db *gorm.DB, lessonID uuid.UUID, req AIQuizGenRequest, fallbackEnvKey string) (*AIQuizGenResult, error) {
-	apiKey, defaultModel, enabled := GetAIGeminiConfig(db, fallbackEnvKey)
-	if !enabled {
+	cfg := GetAIConfig(db, fallbackEnvKey)
+	if !cfg.Enabled {
 		return nil, errors.New("ระบบ AI ช่วยสร้างแบบทดสอบถูกปิดการใช้งานโดยผู้ดูแลระบบ")
 	}
-	if apiKey == "" {
-		return nil, errors.New("ยังไม่ได้ตั้งค่า Google Gemini API Key ในระบบ กรุณาติดต่อผู้ดูแลระบบเพื่อระบุ API Key ที่เมนูตั้งค่าระบบ")
+
+	// Allow request to override provider or model if specified
+	if req.Provider != "" {
+		cfg.Provider = strings.ToLower(req.Provider)
+	}
+	if req.Model != "" {
+		cfg.Model = req.Model
 	}
 
-	modelToUse := req.Model
-	if modelToUse == "" {
-		modelToUse = defaultModel
-	}
-	if modelToUse == "" {
-		modelToUse = "gemini-3.6-flash"
+	if cfg.APIKey == "" && cfg.Provider != "custom" {
+		return nil, fmt.Errorf("ยังไม่ได้ตั้งค่า API Key สำหรับผู้ให้บริการ %s กรุณาระบุ API Key ที่เมนูตั้งค่าระบบ (Admin Settings)", strings.ToUpper(cfg.Provider))
 	}
 
 	// Fetch lesson details
@@ -290,10 +329,23 @@ func GenerateQuizFromLesson(ctx context.Context, db *gorm.DB, lessonID uuid.UUID
 
 	prompt := buildStrictAIPrompt(contentBuilder.String(), lesson.Title, qCount, difficulty, qType, req.CustomInstructions, len(mediaParts) > 0, isYouTube)
 
-	// Call Gemini API with multimodal attachments
-	rawJSON, err := callGeminiMultimodalAPI(ctx, apiKey, modelToUse, prompt, mediaParts)
+	// Call specific AI Provider
+	var rawJSON string
+	var err error
+
+	switch cfg.Provider {
+	case "openai":
+		rawJSON, err = callOpenAIChatAPI(ctx, cfg.APIKey, cfg.BaseURL, cfg.Model, prompt)
+	case "anthropic":
+		rawJSON, err = callAnthropicMessagesAPI(ctx, cfg.APIKey, cfg.Model, prompt, mediaParts)
+	case "custom":
+		rawJSON, err = callOpenAICompatibleAPI(ctx, cfg.APIKey, cfg.BaseURL, cfg.Model, prompt)
+	default: // gemini
+		rawJSON, err = callGeminiMultimodalAPI(ctx, cfg.APIKey, cfg.Model, prompt, mediaParts)
+	}
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[%s] %w", strings.ToUpper(cfg.Provider), err)
 	}
 
 	// Parse JSON
@@ -326,18 +378,18 @@ func GenerateQuizFromLesson(ctx context.Context, db *gorm.DB, lessonID uuid.UUID
 	}
 
 	return &AIQuizGenResult{
-		QuizTitle:   title,
-		LessonID:    lesson.ID.String(),
-		LessonTitle: lesson.Title,
-		Questions:   normalizedQuestions,
-		ModelUsed:   modelToUse,
-		GeneratedAt: time.Now(),
+		QuizTitle:    title,
+		LessonID:     lesson.ID.String(),
+		LessonTitle:  lesson.Title,
+		Questions:    normalizedQuestions,
+		ProviderUsed: cfg.Provider,
+		ModelUsed:    cfg.Model,
+		GeneratedAt:  time.Now(),
 	}, nil
 }
 
 func loadLocalMediaFile(relOrAbsPath, defaultMime string, maxBytes int64) (*MediaPart, error) {
 	cleanPath := strings.TrimPrefix(relOrAbsPath, "/")
-	// Check possible relative paths
 	candidates := []string{
 		cleanPath,
 		filepath.Join(".", cleanPath),
@@ -437,12 +489,14 @@ func buildStrictAIPrompt(contextText, lessonTitle string, count int, difficulty,
 	return sb.String()
 }
 
+// -------------------------------------------------------------
+// PROVIDER 1: Google Gemini API
+// -------------------------------------------------------------
 func callGeminiMultimodalAPI(ctx context.Context, apiKey, model, prompt string, mediaParts []MediaPart) (string, error) {
 	client := &http.Client{
 		Timeout: 75 * time.Second,
 	}
 
-	// 1. Build parts: inline media parts first, then prompt text part
 	var parts []map[string]interface{}
 	for _, m := range mediaParts {
 		parts = append(parts, map[string]interface{}{
@@ -482,7 +536,6 @@ func callGeminiMultimodalAPI(ctx context.Context, apiKey, model, prompt string, 
 				respBody, _ := io.ReadAll(resp.Body)
 
 				if resp.StatusCode == http.StatusOK {
-					// Parse standard generateContent response
 					var genResp struct {
 						Candidates []struct {
 							Content struct {
@@ -507,7 +560,7 @@ func callGeminiMultimodalAPI(ctx context.Context, apiKey, model, prompt string, 
 		}
 	}
 
-	// 2. Fallback to Interactions API if needed
+	// Fallback to Interactions API
 	interactionsURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta2/interactions?key=%s", apiKey)
 	interPayload := map[string]interface{}{
 		"model": model,
@@ -556,25 +609,290 @@ func callGeminiMultimodalAPI(ctx context.Context, apiKey, model, prompt string, 
 		return "", fmt.Errorf("Google Gemini API: %s", errMsg)
 	}
 
-	// Parse Interactions API response
-	var interResp interactionResponse
-	if err := json.Unmarshal(respBody, &interResp); err == nil && len(interResp.Steps) > 0 {
-		var sb strings.Builder
-		for _, step := range interResp.Steps {
-			if step.Type == "model_output" || step.Type == "output" || step.Type == "" {
-				for _, c := range step.Content {
-					if c.Text != "" {
-						sb.WriteString(c.Text)
-					}
-				}
-			}
+	return string(respBody), nil
+}
+
+// -------------------------------------------------------------
+// PROVIDER 2: OpenAI API (ChatGPT)
+// -------------------------------------------------------------
+func callOpenAIChatAPI(ctx context.Context, apiKey, baseURL, model, prompt string) (string, error) {
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	cleanBase := strings.TrimRight(baseURL, "/")
+	apiURL := fmt.Sprintf("%s/chat/completions", cleanBase)
+
+	client := &http.Client{
+		Timeout: 75 * time.Second,
+	}
+
+	reqPayload := map[string]interface{}{
+		"model": model,
+		"messages": []map[string]interface{}{
+			{
+				"role":    "system",
+				"content": "You are an expert exam creator for high school students. Respond strictly with valid JSON.",
+			},
+			{
+				"role":    "user",
+				"content": prompt,
+			},
+		},
+		"response_format": map[string]interface{}{
+			"type": "json_object",
+		},
+		"temperature": 0.2,
+	}
+
+	jsonBytes, err := json.Marshal(reqPayload)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling OpenAI payload: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return "", fmt.Errorf("error creating OpenAI request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("ไม่สามารถติดต่อ OpenAI API ได้: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading OpenAI response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+			} `json:"error"`
 		}
-		if sb.Len() > 0 {
-			return sb.String(), nil
+		_ = json.Unmarshal(respBody, &errResp)
+		errMsg := errResp.Error.Message
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("HTTP Status %d", resp.StatusCode)
+		}
+		return "", fmt.Errorf("OpenAI API Error: %s", errMsg)
+	}
+
+	var chatResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.Unmarshal(respBody, &chatResp); err != nil || len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("invalid response format from OpenAI: %s", string(respBody))
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
+}
+
+// -------------------------------------------------------------
+// PROVIDER 3: Anthropic Claude API
+// -------------------------------------------------------------
+func callAnthropicMessagesAPI(ctx context.Context, apiKey, model, prompt string, mediaParts []MediaPart) (string, error) {
+	apiURL := "https://api.anthropic.com/v1/messages"
+
+	client := &http.Client{
+		Timeout: 75 * time.Second,
+	}
+
+	var contentBlocks []map[string]interface{}
+
+	// Add PDF document block if any
+	for _, m := range mediaParts {
+		if m.MimeType == "application/pdf" {
+			contentBlocks = append(contentBlocks, map[string]interface{}{
+				"type": "document",
+				"source": map[string]interface{}{
+					"type":       "base64",
+					"media_type": "application/pdf",
+					"data":       m.Base64Data,
+				},
+			})
 		}
 	}
 
-	return string(respBody), nil
+	// Add text prompt block
+	contentBlocks = append(contentBlocks, map[string]interface{}{
+		"type": "text",
+		"text": prompt,
+	})
+
+	reqPayload := map[string]interface{}{
+		"model":      model,
+		"max_tokens": 4096,
+		"system":     "You are an expert exam creator for high school LMS. Always respond with pure valid JSON matching the requested structure. Never include introductory text.",
+		"messages": []map[string]interface{}{
+			{
+				"role":    "user",
+				"content": contentBlocks,
+			},
+		},
+		"temperature": 0.2,
+	}
+
+	jsonBytes, err := json.Marshal(reqPayload)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling Anthropic payload: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return "", fmt.Errorf("error creating Anthropic request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", apiKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("ไม่สามารถติดต่อ Anthropic Claude API ได้: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading Anthropic response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+			} `json:"error"`
+		}
+		_ = json.Unmarshal(respBody, &errResp)
+		errMsg := errResp.Error.Message
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("HTTP Status %d", resp.StatusCode)
+		}
+		return "", fmt.Errorf("Anthropic API Error: %s", errMsg)
+	}
+
+	var msgResp struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+
+	if err := json.Unmarshal(respBody, &msgResp); err != nil || len(msgResp.Content) == 0 {
+		return "", fmt.Errorf("invalid response format from Anthropic: %s", string(respBody))
+	}
+
+	var sb strings.Builder
+	for _, c := range msgResp.Content {
+		if c.Type == "text" {
+			sb.WriteString(c.Text)
+		}
+	}
+
+	return sb.String(), nil
+}
+
+// -------------------------------------------------------------
+// PROVIDER 4: OpenAI-Compatible Custom Provider (DeepSeek, Groq, Ollama)
+// -------------------------------------------------------------
+func callOpenAICompatibleAPI(ctx context.Context, apiKey, baseURL, model, prompt string) (string, error) {
+	if baseURL == "" {
+		baseURL = "https://api.deepseek.com/v1"
+	}
+	cleanBase := strings.TrimRight(baseURL, "/")
+	apiURL := cleanBase
+	if !strings.HasSuffix(apiURL, "/chat/completions") {
+		apiURL = fmt.Sprintf("%s/chat/completions", cleanBase)
+	}
+
+	client := &http.Client{
+		Timeout: 75 * time.Second,
+	}
+
+	reqPayload := map[string]interface{}{
+		"model": model,
+		"messages": []map[string]interface{}{
+			{
+				"role":    "system",
+				"content": "You are an expert exam creator for high school students. Respond strictly with valid JSON without markdown wrapping if possible.",
+			},
+			{
+				"role":    "user",
+				"content": prompt,
+			},
+		},
+		"temperature": 0.2,
+	}
+
+	jsonBytes, err := json.Marshal(reqPayload)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling payload: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	}
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("ไม่สามารถติดต่อ Custom API Server (%s) ได้: %w", baseURL, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+			Message string `json:"message"`
+		}
+		_ = json.Unmarshal(respBody, &errResp)
+		errMsg := errResp.Error.Message
+		if errMsg == "" {
+			errMsg = errResp.Message
+		}
+		if errMsg == "" {
+			errMsg = fmt.Sprintf("HTTP Status %d (%s)", resp.StatusCode, string(respBody))
+		}
+		return "", fmt.Errorf("Custom Provider API Error: %s", errMsg)
+	}
+
+	var chatResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.Unmarshal(respBody, &chatResp); err != nil || len(chatResp.Choices) == 0 {
+		return "", fmt.Errorf("invalid response format from Custom Provider: %s", string(respBody))
+	}
+
+	return chatResp.Choices[0].Message.Content, nil
 }
 
 func extractJSONBlock(raw string) string {
@@ -641,7 +959,6 @@ func normalizeAIQuestion(q AIQuizQuestionItem) *AIQuizQuestionItem {
 	}
 
 	corr := strings.TrimSpace(q.CorrectAnswer)
-	// Check if correct answer matches any option
 	matched := false
 	for _, opt := range cleanedOptions {
 		if strings.EqualFold(opt, corr) {
@@ -651,7 +968,6 @@ func normalizeAIQuestion(q AIQuizQuestionItem) *AIQuizQuestionItem {
 		}
 	}
 
-	// If not directly matched, check if it's an index like A, B, C, D or 1, 2, 3, 4 or ก, ข, ค, ง
 	if !matched {
 		corrLower := strings.ToLower(corr)
 		idx := -1
@@ -672,7 +988,6 @@ func normalizeAIQuestion(q AIQuizQuestionItem) *AIQuizQuestionItem {
 	}
 
 	if !matched {
-		// Default to first option if no match found
 		corr = cleanedOptions[0]
 	}
 
