@@ -50,3 +50,9 @@ backend/uploads/*
 # Docker
 docker/
 
+# Lighthouse reports
+.lighthouseci/
+lighthouse-report*.json
+lighthouse-report*.html
+*-report.json
+*-report.html
