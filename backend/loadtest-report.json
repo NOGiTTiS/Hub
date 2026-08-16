@@ -1,0 +1,46 @@
+{
+  "target_url": "http://localhost:8080",
+  "concurrency": 150,
+  "duration_seconds": 15.9006423,
+  "timestamp": "2026-08-16T13:02:16+07:00",
+  "overall_stats": {
+    "name": "OVERALL",
+    "total_requests": 2970,
+    "success_requests": 2970,
+    "failed_requests": 0,
+    "total_bytes": 4211139,
+    "rps": 186.78490742477743,
+    "throughput_mbps": 0.25257187925777685,
+    "min_latency_ms": 72.575,
+    "max_latency_ms": 2126.377,
+    "mean_latency_ms": 697.4000952861942,
+    "p50_latency_ms": 733.784,
+    "p90_latency_ms": 1051.853,
+    "p95_latency_ms": 1207.244,
+    "p99_latency_ms": 1513.473,
+    "status_codes": {
+      "200": 2970
+    }
+  },
+  "scenarios": {
+    "auth": {
+      "name": "auth",
+      "total_requests": 2970,
+      "success_requests": 2970,
+      "failed_requests": 0,
+      "total_bytes": 4211139,
+      "rps": 186.78490742477743,
+      "throughput_mbps": 0.25257187925777685,
+      "min_latency_ms": 72.575,
+      "max_latency_ms": 2126.377,
+      "mean_latency_ms": 697.4000952861942,
+      "p50_latency_ms": 733.784,
+      "p90_latency_ms": 1051.853,
+      "p95_latency_ms": 1207.244,
+      "p99_latency_ms": 1513.473,
+      "status_codes": {
+        "200": 2970
+      }
+    }
+  }
+}

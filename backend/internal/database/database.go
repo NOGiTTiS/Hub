@@ -39,10 +39,11 @@ func Connect(cfg *config.Config) (*Database, error) {
 		return nil, err
 	}
 
-	// Connection Pool configuration
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
+	// Connection Pool configuration optimized for 150 concurrent active users
+	sqlDB.SetMaxIdleConns(50)
+	sqlDB.SetMaxOpenConns(150)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
 	// Redis connection
 	rdb := redis.NewClient(&redis.Options{
