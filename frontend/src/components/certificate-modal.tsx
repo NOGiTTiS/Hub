@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useRef, useState, useEffect } from "react"
+import QRCode from "qrcode"
 import {
   X,
   Printer,
@@ -47,6 +48,7 @@ interface CertificateModalProps {
 export function CertificateModal({ cert, onClose }: CertificateModalProps) {
   const certRef = useRef<HTMLDivElement>(null)
   const [settings, setSettings] = useState<PublicCertSettings | null>(null)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("")
 
   useEffect(() => {
     let ignore = false
@@ -65,6 +67,27 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
       ignore = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!cert?.certificate_code) return
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
+    const verifyUrl = `${origin}/verify/${encodeURIComponent(cert.certificate_code)}`
+
+    QRCode.toDataURL(verifyUrl, {
+      width: 240,
+      margin: 1,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        setQrCodeUrl(url)
+      })
+      .catch((err) => {
+        console.error("Failed to generate QR Code", err)
+      })
+  }, [cert?.certificate_code])
 
   const handlePrint = () => {
     window.print()
@@ -272,15 +295,36 @@ export function CertificateModal({ cert, onClose }: CertificateModalProps) {
             </div>
           </div>
 
-          {/* CERTIFICATE VERIFICATION METADATA */}
-          <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400 pt-6 mt-4 border-t border-slate-200 gap-2">
-            <span className="font-mono">
-              รหัสรับรอง: <strong className="text-slate-700">{cert.certificate_code}</strong>
-            </span>
-            <span>วันที่ออกใบรับรอง: {issuedDate}</span>
-            <span className="flex items-center gap-1 text-emerald-700 font-bold">
-              <ShieldCheck className="w-3.5 h-3.5" /> ตรวจสอบความถูกต้องสมบูรณ์ 100%
-            </span>
+          {/* CERTIFICATE VERIFICATION METADATA WITH DYNAMIC QR CODE */}
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500 pt-5 mt-4 border-t border-amber-600/20 gap-3">
+            <div className="flex items-center gap-3 text-left">
+              {qrCodeUrl && (
+                <div className="w-14 h-14 bg-white p-1 rounded-lg border border-amber-700/30 shadow-sm shrink-0 flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrCodeUrl}
+                    alt={`QR Code ${cert.certificate_code}`}
+                    className="w-12 h-12 object-contain"
+                  />
+                </div>
+              )}
+              <div className="space-y-0.5">
+                <span className="font-mono block text-slate-600 text-[11px]">
+                  รหัสรับรอง: <strong className="text-slate-900 font-bold">{cert.certificate_code}</strong>
+                </span>
+                <span className="block text-slate-500 text-[10px]">
+                  วันที่ออก: {issuedDate}
+                </span>
+                <span className="text-[9px] text-amber-800/90 font-medium block">
+                  สแกน QR Code เพื่อตรวจสอบความถูกต้องออนไลน์
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-300/80 text-emerald-800 font-bold text-[10px] shadow-sm shrink-0">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>ตรวจสอบความถูกต้องสมบูรณ์ 100%</span>
+            </div>
           </div>
         </div>
       </div>

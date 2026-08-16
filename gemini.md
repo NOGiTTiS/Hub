@@ -133,7 +133,7 @@ D:\Hub
   - [x] Build Interactive Quiz Engine (Question Builder, Timer, Auto-Grading Logic, Attempts history, and Max Attempts Quota Limit)
   - [x] Implement Quiz & Question Import Engine (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder)
   - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
-  - [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
+  - [x] Implement Certificate Generation & Verification Engine (1-Page Landscape Printable PDF, Dynamic QR Code, Public Search Portal `/verify`, Camera/Image Scanner & Public Verification Endpoint `/verify/[code]`)
 - [x] **Phase 5: Admin System Settings, Branding, Governance & Landing Page CMS** *(Completed & Verified)*
   - [x] Implement System Settings Data Model, Seed Defaults & Batch Update API
   - [x] Build Admin System Settings Dashboard (`/admin/settings`) with 5 Dedicated Tabs

@@ -36,7 +36,7 @@
 * **Landing Page Management System (Landing Page CMS):** แดชบอร์ดจัดการหน้าแรกสำหรับ Admin (`/admin/landing`) รูปแบบ Card Grid Tabs 7 หมวดหมู่ (Hero, Stats, Features, Featured Courses, Steps, FAQ, CTA/Footer) พร้อมระบบจัดการรูปภาพ Hero Banner และพรีวิวแบบ Real-time บนหน้าแรก (`/`)
 * **Interactive Code Playground:** Client-Side WebAssembly (Pyodide v0.26.2 สำหรับ Python) + Monaco Code Editor รองรับการแสดงผล Console, Stderr/Stdout capture, และคำสั่ง `input()` แบบ Interactive ผ่าน `pyodide.setStdin`
 * **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมระบบ Batch Quiz Import (.xlsx / .csv), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
-* **Certificate Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมลายเซ็นและตราประทับโรงเรียน รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape) และหน้าตรวจสอบความถูกต้องสาธารณะ (`/verify/[code]`)
+* **Certificate & Verification Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมตราสัญลักษณ์ ลายเซ็นผู้บริหาร และ **Dynamic QR Code** เชื่อมโยงตรงสู่ระบบตรวจสอบความถูกต้องแบบ Real-time, รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape), พอร์ทัลค้นหาและตรวจสอบความถูกต้องสาธารณะ (`/verify`) พร้อม Search Box และกล้องสแกน QR Code (Webcam & File Upload), และหน้ารายละเอียดการรับรองรายบุคคล (`/verify/[code]`)
 * **DevOps & Proxy:** Nginx Reverse Proxy + Docker & Docker Compose (Production & Dev Stacks)
 
 ---
@@ -293,10 +293,13 @@
 | `POST` | `/api/student/quizzes/:id/submit` | STUDENT | ส่งคำตอบ ตรวจข้อสอบ ตรวจสอบโควตา และบันทึกประวัติสอบ |
 | `GET` | `/api/student/courses/:id/certificate` | STUDENT | ตรวจสอบเงื่อนไข 100% และรับใบประกาศนียบัตร |
 
-### 3.5 การตรวจสอบใบประกาศนียบัตรสาธารณะ (Public Verification API)
-| Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
+### 3.5 การตรวจสอบใบประกาศนียบัตรสาธารณะ (Public Verification API & Frontend Routes)
+| Method / Type | Endpoint / Route | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/certificates/verify/:code` | Public | ตรวจสอบความถูกต้องของรหัสใบประกาศนียบัตร (Case-Insensitive) |
+| `GET` (API) | `/api/certificates/verify/:code` | Public | ตรวจสอบความถูกต้องของรหัสใบประกาศนียบัตร (Case-Insensitive) |
+| Page (Next.js) | `/verify` | Public | พอร์ทัลค้นหาและตรวจสอบเกียรติบัตรสาธารณะ พร้อม Search Box, กล้องสแกน QR Code (Webcam / Image Upload), และ Instant Result Card |
+| Page (Next.js) | `/verify/[code]` | Public | หน้าแสดงผลการตรวจสอบความถูกต้องรายบุคคล แสดงตราประทับ Verified, ข้อมูลนักเรียน/คอร์ส, Dynamic QR Code, และปุ่มแชร์ลิงก์ |
+| Component | `CertificateModal` | Student | หน้าต่างแสดงผลเกียรติบัตรสำเร็จการศึกษา (100% Progress) พร้อมตราโรงเรียน, ลายเซ็นผู้บริหาร, Dynamic QR Code, และระบบพิมพ์ 1-Page Landscape A4 |
 
 ---
 
@@ -331,7 +334,7 @@
 - [x] Build Interactive Quiz Engine (Question Builder, Timer, Auto-Grading Logic, Attempts History, and Max Attempts Quota Limit)
 - [x] Implement **Quiz & Question Import Engine** (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder) [ดูแผนงานใน docs/quiz_import_system_plan.md]
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
-- [x] Implement Certificate Generation Engine (1-Page Landscape Printable PDF & Public Verification Endpoint)
+- [x] Implement **Certificate Generation & Verification Engine** (ระบบออกรหัสรับรอง `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อม Dynamic QR Code เชื่อมโยงตรงสู่ระบบตรวจสอบ, รองรับการสั่งพิมพ์ A4 แนวนอน 1-Page Landscape, หน้าค้นหาหลักสาธารณะ `/verify` พร้อม Search Box & กล้องสแกน QR Code Webcam/Image Upload, และหน้าตรวจสอบความถูกต้องรายบุคคล `/verify/[code]`) [ดูแผนงานใน docs/certificate_verification_enhancement_plan.md]
 - [x] Implement **Lesson Time & Schedule Management System** (ระบบกำหนดระยะเวลาบทเรียน, ตารางเปิด-ปิดเนื้อหา Drip Schedule, เวลาเรียนขั้นต่ำก่อนกดจบ Anti-Skipping Timer พร้อมระบบ Pause on Window Blur & Tab Hidden via Window Focus & Page Visibility API, ระบบ Persistent Timer บันทึกเวลาสะสมลง LocalStorage ไม่สูญหายเมื่อรีเฟรชหน้าเว็บหรือเน็ตหลุด, และแสดงเวลารวมทั้งหมดของคอร์ส) [ดูแผนงานใน docs/lesson_time_system_plan.md]
 
 ### 📌 Phase 5: Admin System Settings, Branding, Governance & Landing Page CMS

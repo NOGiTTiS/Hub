@@ -306,7 +306,15 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/verify"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-xs font-semibold transition-all shadow-xs"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>ตรวจสอบเกียรติบัตร</span>
+            </Link>
+
             <ThemeToggle />
             {isAuthenticated && user ? (
               <Link
@@ -672,8 +680,41 @@ export default function HomePage() {
       </main>
 
       {/* ================= FOOTER ================= */}
-      <footer className="py-6 text-center text-xs text-slate-500 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800/60 px-4">
-        {footerText}
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 py-10 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-500/10 dark:bg-brand-950/60 border border-brand-500/20 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div className="text-left">
+              <p className="font-bold text-slate-900 dark:text-white text-sm">
+                {settings.platform_title || "TUNorth-Hub"}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {settings.school_name_th || "โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-medium">
+            <Link href="/verify" className="hover:text-brand-600 dark:hover:text-white flex items-center gap-1.5 transition">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>ตรวจสอบใบประกาศนียบัตร</span>
+            </Link>
+            <Link href="/login" className="hover:text-brand-600 dark:hover:text-white transition">
+              เข้าสู่ระบบ
+            </Link>
+            {allowRegistration && (
+              <Link href="/register" className="hover:text-brand-600 dark:hover:text-white transition">
+                สมัครสมาชิกนักเรียน
+              </Link>
+            )}
+          </div>
+
+          <p className="text-[11px] text-slate-400 text-center md:text-right">
+            {footerText}
+          </p>
+        </div>
       </footer>
     </div>
   )
