@@ -42,7 +42,8 @@ D:\Hub
 ├── .env                          # Local Environment Variables
 ├── .env.example                  # Example Environment Config
 ├── .gitignore                    # Git Ignore Patterns
-├── docker-compose.yml            # Docker Orchestration (5 Services)
+├── docker-compose.yml            # Docker Dev Database & Cache (PostgreSQL 17, Redis 7)
+├── docker-compose.prod.yml       # Docker Production Orchestration (5 Services: DB, Redis, Backend, Frontend, Nginx)
 ├── gemini.md                     # 🧠 Project Brain & Memory (This file)
 │
 ├── docs/                         # Specification & Requirements
@@ -111,7 +112,7 @@ D:\Hub
   - [x] Setup Project Directory & Repository Structure
   - [x] Configure Next.js 16 + Bun + Tailwind CSS + ESLint (`semi: never`)
   - [x] Configure Go 1.25+ + Fiber + GORM Clean Architecture
-  - [x] Setup Air Hot Reload Engine (`.air.toml`, `Dockerfile.dev`, `docker-compose.dev.yml`)
+  - [x] Setup Air Hot Reload Engine (`.air.toml`, `Dockerfile.dev`, `docker-compose.yml`)
   - [x] Setup Docker Compose (PostgreSQL 17, Redis 7, Backend, Frontend, Nginx)
   - [x] Setup Local Volume Mounting Structure (`uploads/`)
   - [x] Implement Database Migrations & Initial Seed Data in Go
@@ -154,15 +155,19 @@ D:\Hub
 ## ⚡ 6. คำสั่งสำคัญสำหรับการพัฒนา (Key Commands)
 
 ```powershell
-# รันทั้งระบบผ่าน Docker Compose
-docker compose up -d --build
+# รัน Database & Cache สำหรับ Local Dev (docker-compose.yml)
+docker compose up -d
 
-# ดูสถานะคอนเทนเนอร์และ Logs
+# หรือรันทั้งระบบแบบ Production Stack (docker-compose.prod.yml)
+docker compose -f docker-compose.prod.yml up -d --build
+
+# ดูสถานะคอนเทนเนอร์และ Logs (Dev Mode)
 docker compose ps
-docker compose logs -f backend
+docker compose logs -f
 
-# รันเฉพาะ Database & Cache สำหรับ Local Dev
-docker compose up -d postgres redis
+# ดูสถานะคอนเทนเนอร์และ Logs (Production Mode)
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f backend
 
 # รัน Backend Local Dev (Go)
 cd D:\Hub\backend

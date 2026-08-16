@@ -29,7 +29,7 @@
 * **User Profile & Personalization Engine:** ระบบจัดการโปรไฟล์ผู้ใช้งาน (`/profile` & `/api/profile`) รองรับการอัปโหลดและเปลี่ยนรูป Avatar (JPG, PNG, WebP) แสดงผลพร้อม Initials Fallback บน Navbar, การแก้ไขข้อมูลติดต่อและ Bio, ระบบเปลี่ยนรหัสผ่านตรวจสอบรหัสเดิมด้วย Bcrypt, และการ์ดแสดงสถิติกิจกรรมที่คำนวณแยกตามบทบาทอัตโนมัติ (Student: คอร์สเรียนจบ/เกียรติบัตร/การบ้าน; Teacher: คอร์สที่สร้าง/เผยแพร่/นักเรียน/งานรอตรวจ; Admin: ผู้ใช้งาน/คอร์สในระบบ)
 * **Frontend Tooling & Package Manager:** **Bun** *(ใช้งาน Bun ทั้งหมดสำหรับ Frontend Dependencies, Dev และ Scripts โดยโค้ดฝั่ง Frontend ห้ามใส่ Semicolon เด็ดขาด)*
 * **Backend API:** **Go 1.25+** + **Fiber Framework (v2)** + **GORM (ORM)** Clean Architecture
-* **Hot Reload & Dev Engine:** **Air (v1.64+)** รองรับ Live Reload ทั้งบน Local Machine และ Docker Development (`.air.toml`, `Dockerfile.dev`, `docker-compose.dev.yml`)
+* **Hot Reload & Dev Engine:** **Air (v1.64+)** รองรับ Live Reload ทั้งบน Local Machine และ Docker Development (`.air.toml`, `Dockerfile.dev`, `docker-compose.yml`)
 * **Database & Cache:** **PostgreSQL 17** + **Redis 7**
 * **Media & File Storage:** Local Volume Mount บน Host Machine ผ่าน Docker Mount Path (`/var/tunorth_data/uploads`) พร้อมตัวช่วยแปลง Relative Path (`getMediaUrl()`)
 * **Admin System Settings & Diagnostics:** ควบคุมข้อมูลโรงเรียน, ลายเซ็นผู้อำนวยการบนเกียรติบัตร, แถบประกาศทั่วทั้งระบบ (Banner), สวิตช์ปิดปรับปรุงระบบ (Maintenance Guard), และแดชบอร์ดตรวจสอบสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime
@@ -311,7 +311,7 @@
 - [x] Setup Repository & Project Directory Structure
 - [x] Configure Frontend: Next.js 16 (App Router) + TypeScript + Bun Package Manager + Tailwind CSS + Lucide Icons
 - [x] Configure Backend: Go 1.25+ + Fiber Framework + GORM Project Architecture
-- [x] Integrate **Air (Hot Reload)** for rapid Go development (`.air.toml`, `Dockerfile.dev`, `docker-compose.dev.yml`)
+- [x] Integrate **Air (Hot Reload)** for rapid Go development (`.air.toml`, `Dockerfile.dev`, `docker-compose.yml`)
 - [x] Setup Docker Compose Environment (Next.js, Go API, PostgreSQL 17, Redis 7, Nginx)
 - [x] Setup Local Volume Mounting Structure for Media Uploads (`/var/tunorth_data/uploads`)
 - [x] Implement Database Migrations & Initial Seed Data scripts in Go
@@ -367,8 +367,8 @@
 ### 5.1 การรันในโหมด Development (Hot Reload)
 
 ```powershell
-# 1. รัน Database (PostgreSQL) และ Cache (Redis)
-docker compose up -d postgres redis
+# 1. รัน Database (PostgreSQL 17) และ Cache (Redis 7) สำหรับ Dev
+docker compose up -d
 
 # 2. รัน Backend ด้วย Air (Hot Reload อัตโนมัติเมื่อแก้โค้ด Go)
 cd backend
@@ -377,11 +377,6 @@ air
 # 3. รัน Frontend ด้วย Bun (Hot Reload Next.js)
 cd frontend
 bun run dev
-```
-
-หรือรันผ่าน Docker Compose Development Stack:
-```powershell
-docker compose -f docker-compose.dev.yml up --build
 ```
 
 ### 5.2 การรัน Seed ข้อมูลระบบเริ่มต้น
@@ -409,7 +404,8 @@ bun run build
 
 ### 5.5 การรัน Production Stack
 ```powershell
-docker compose up -d --build
+# รันทั้งระบบ Production Stack (Postgres, Redis, Go Backend, Next.js Frontend, Nginx)
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ---
