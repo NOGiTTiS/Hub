@@ -85,15 +85,15 @@ func (d *Database) AutoMigrate() error {
 
 func SeedDefaultCategories(db *gorm.DB) error {
 	defaultCategories := []models.CourseCategory{
-		{Name: "วิทยาศาสตร์และเทคโนโลยี", Description: "กลุ่มสาระการเรียนรู้วิทยาศาสตร์ คอมพิวเตอร์ และเทคโนโลยี", Color: "#2563eb", OrderIndex: 1},
+		{Name: "ภาษาไทย", Description: "กลุ่มสาระการเรียนรู้ภาษาไทย วรรณคดี และการสื่อสาร", Color: "#d97706", OrderIndex: 1},
 		{Name: "คณิตศาสตร์", Description: "กลุ่มสาระการเรียนรู้คณิตศาสตร์และสถิติ", Color: "#7c3aed", OrderIndex: 2},
-		{Name: "ภาษาต่างประเทศ", Description: "กลุ่มสาระการเรียนรู้ภาษาต่างประเทศ (อังกฤษ, ญี่ปุ่น, จีน ฯลฯ)", Color: "#059669", OrderIndex: 3},
-		{Name: "ภาษาไทย", Description: "กลุ่มสาระการเรียนรู้ภาษาไทย วรรณคดี และการสื่อสาร", Color: "#d97706", OrderIndex: 4},
-		{Name: "สังคมศึกษา ศาสนา และวัฒนธรรม", Description: "กลุ่มสาระการเรียนรู้สังคมศึกษา ประวัติศาสตร์ ภูมิศาสตร์ และหน้าที่พลเมือง", Color: "#dc2626", OrderIndex: 5},
-		{Name: "ศิลปะ ดนตรี และนาฏศิลป์", Description: "กลุ่มสาระการเรียนรู้ทัศนศิลป์ ดนตรีสากล/ไทย และนาฏศิลป์", Color: "#db2777", OrderIndex: 6},
-		{Name: "สุขศึกษาและพลศึกษา", Description: "กลุ่มสาระการเรียนรู้สุขศึกษา กีฬา และการส่งเสริมสุขภาพ", Color: "#16a34a", OrderIndex: 7},
-		{Name: "การงานอาชีพ", Description: "กลุ่มสาระการเรียนรู้การงานอาชีพ ทักษะชีวิต และเทคโนโลยีธุรกิจ", Color: "#ea580c", OrderIndex: 8},
-		{Name: "กิจกรรมพัฒนาผู้เรียนและทั่วไป", Description: "กิจกรรมแนะแนว ชมรม และหลักสูตรเสริมทักษะทั่วไป", Color: "#4b5563", OrderIndex: 9},
+		{Name: "วิทยาศาสตร์และเทคโนโลยี", Description: "กลุ่มสาระการเรียนรู้วิทยาศาสตร์ คอมพิวเตอร์ และเทคโนโลยี", Color: "#2563eb", OrderIndex: 3},
+		{Name: "สังคมศึกษา ศาสนา และวัฒนธรรม", Description: "กลุ่มสาระการเรียนรู้สังคมศึกษา ประวัติศาสตร์ ภูมิศาสตร์ และหน้าที่พลเมือง", Color: "#dc2626", OrderIndex: 4},
+		{Name: "สุขศึกษาและพลศึกษา", Description: "กลุ่มสาระการเรียนรู้สุขศึกษา กีฬา และการส่งเสริมสุขภาพ", Color: "#16a34a", OrderIndex: 5},
+		{Name: "ศิลปะ", Description: "กลุ่มสาระการเรียนรู้ทัศนศิลป์ ดนตรีสากล/ไทย และนาฏศิลป์", Color: "#db2777", OrderIndex: 6},
+		{Name: "การงานอาชีพ", Description: "กลุ่มสาระการเรียนรู้การงานอาชีพ ทักษะชีวิต และเทคโนโลยีธุรกิจ", Color: "#ea580c", OrderIndex: 7},
+		{Name: "ภาษาต่างประเทศ", Description: "กลุ่มสาระการเรียนรู้ภาษาต่างประเทศ (อังกฤษ, ญี่ปุ่น, จีน ฯลฯ)", Color: "#059669", OrderIndex: 8},
+		{Name: "กิจกรรมพัฒนาผู้เรียน", Description: "กิจกรรมแนะแนว ชมรม และหลักสูตรเสริมทักษะทั่วไป", Color: "#4b5563", OrderIndex: 9},
 	}
 
 	for _, cat := range defaultCategories {
@@ -115,9 +115,9 @@ func SeedDefaultSettings(db *gorm.DB) error {
 	defaultSettings := []models.SystemSetting{
 		// General / School Profile
 		{Key: "school_name_th", Value: "โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ", Description: "ชื่อโรงเรียนภาษาไทย", Category: "GENERAL"},
-		{Key: "school_name_en", Value: "Triam Udom Suksa Phak Nuea School", Description: "ชื่อโรงเรียนภาษาอังกฤษ", Category: "GENERAL"},
+		{Key: "school_name_en", Value: "Triam Udom Suksa School of the North", Description: "ชื่อโรงเรียนภาษาอังกฤษ", Category: "GENERAL"},
 		{Key: "platform_title", Value: "TUNorth-Hub", Description: "ชื่อระบบแพลตฟอร์ม", Category: "GENERAL"},
-		{Key: "platform_subtitle", Value: "ระบบการจัดการเรียนรู้ดิจิทัลสำหรับนักเรียนมัธยมศึกษา", Description: "สโลแกนหรือคำอธิบายระบบ", Category: "GENERAL"},
+		{Key: "platform_subtitle", Value: "แพลตฟอร์มเรียนรู้ออนไลน์", Description: "สโลแกนหรือคำอธิบายระบบ", Category: "GENERAL"},
 		{Key: "director_name", Value: "ดร.ผู้อำนวยการ โรงเรียน", Description: "ชื่อผู้อำนวยการสำหรับลงนามในเกียรติบัตร", Category: "GENERAL"},
 		{Key: "director_position", Value: "ผู้อำนวยการโรงเรียนเตรียมอุดมศึกษา ภาคเหนือ", Description: "ตำแหน่งผู้อำนวยการสำหรับลงนามในเกียรติบัตร", Category: "GENERAL"},
 		{Key: "academic_year", Value: "2569", Description: "ปีการศึกษาปัจจุบัน", Category: "GENERAL"},
