@@ -103,6 +103,20 @@ export function Navbar() {
       : []),
   ]
 
+  const isActiveLink = (linkHref: string) => {
+    if (pathname === linkHref) return true
+    if (pathname.startsWith(linkHref + "/")) {
+      const hasMoreSpecificMatch = navLinks.some(
+        (other) =>
+          other.href !== linkHref &&
+          other.href.startsWith(linkHref) &&
+          (pathname === other.href || pathname.startsWith(other.href + "/"))
+      )
+      return !hasMoreSpecificMatch
+    }
+    return false
+  }
+
   return (
     <header className="sticky top-0 z-50 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -136,7 +150,7 @@ export function Navbar() {
           {/* DESKTOP NAV LINKS (1024px+) */}
           <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => {
-              const active = pathname === link.href || pathname.startsWith(link.href + "/")
+              const active = isActiveLink(link.href)
               const Icon = link.icon
               return (
                 <Link
@@ -283,7 +297,7 @@ export function Navbar() {
 
           <div className="space-y-1">
             {navLinks.map((link) => {
-              const active = pathname === link.href
+              const active = isActiveLink(link.href)
               const Icon = link.icon
               return (
                 <Link
