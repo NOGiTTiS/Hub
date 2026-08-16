@@ -91,7 +91,9 @@ export default function HomePage() {
   const { user, isAuthenticated } = useAuth()
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [courses, setCourses] = useState<CourseItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     async function loadPublicData() {
@@ -108,6 +110,8 @@ export default function HomePage() {
         }
       } catch (err) {
         console.error("Failed to load public landing data", err)
+      } finally {
+        setLoading(false)
       }
     }
     loadPublicData()
@@ -281,7 +285,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {settings.site_logo_url ? (
+            {settings.site_logo_url && !imgErrors["site_logo"] ? (
               <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800">
                 <Image
                   src={getMediaUrl(settings.site_logo_url)}
@@ -290,6 +294,7 @@ export default function HomePage() {
                   className="object-cover"
                   unoptimized
                   priority
+                  onError={() => setImgErrors(prev => ({ ...prev, site_logo: true }))}
                 />
               </div>
             ) : (
@@ -337,7 +342,7 @@ export default function HomePage() {
                 )}
                 <Link
                   href="/login"
-                  className="bg-brand-500 hover:bg-brand-600 active:scale-95 text-white px-4 sm:px-5 py-2 rounded-xl text-xs font-semibold shadow-md shadow-brand-900/20 transition-all flex items-center gap-1"
+                  className="bg-brand-500 hover:bg-brand-600 active:scale-95 text-brand-foreground px-4 sm:px-5 py-2 rounded-xl text-xs font-semibold shadow-md shadow-brand-900/20 transition-all flex items-center gap-1"
                 >
                   เข้าสู่ระบบ
                   <ArrowRight className="w-3.5 h-3.5 hidden sm:inline" />
@@ -352,8 +357,8 @@ export default function HomePage() {
       <main className="flex-1 w-full space-y-20 pb-16">
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 text-center space-y-8">
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="inline-flex items-center gap-2 bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 text-xs font-semibold px-4 py-1.5 rounded-full border border-brand-200 dark:border-brand-800 shadow-sm animate-pulse">
-              <Sparkles className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+            <div className="inline-flex items-center gap-2 bg-brand-100 dark:bg-brand-950/80 text-brand-800 dark:text-brand-200 text-xs font-semibold px-4 py-1.5 rounded-full border border-brand-200 dark:border-brand-800 shadow-sm animate-pulse">
+              <Sparkles className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
               <span>{heroBadge}</span>
             </div>
 
@@ -374,7 +379,7 @@ export default function HomePage() {
               {isAuthenticated && user ? (
                 <Link
                   href={getDashboardLink()}
-                  className="bg-brand-500 hover:bg-brand-600 active:scale-95 text-white px-7 py-3.5 rounded-2xl text-sm font-semibold shadow-lg shadow-brand-900/25 transition-all flex items-center gap-2"
+                  className="bg-brand-500 hover:bg-brand-600 active:scale-95 text-brand-foreground px-7 py-3.5 rounded-2xl text-sm font-semibold shadow-lg shadow-brand-900/25 transition-all flex items-center gap-2"
                 >
                   เข้าสู่ห้องเรียน ({user.first_name})
                   <ArrowRight className="w-4 h-4" />
@@ -384,7 +389,7 @@ export default function HomePage() {
                   {primaryCtaText && (
                     <Link
                       href={primaryCtaLink}
-                      className="bg-brand-500 hover:bg-brand-600 active:scale-95 text-white px-7 py-3.5 rounded-2xl text-sm font-semibold shadow-lg shadow-brand-900/25 transition-all flex items-center gap-2"
+                      className="bg-brand-500 hover:bg-brand-600 active:scale-95 text-brand-foreground px-7 py-3.5 rounded-2xl text-sm font-semibold shadow-lg shadow-brand-900/25 transition-all flex items-center gap-2"
                     >
                       {primaryCtaText}
                       <ArrowRight className="w-4 h-4" />
@@ -405,17 +410,22 @@ export default function HomePage() {
           </div>
 
           {/* Hero Showcase Image (if uploaded) */}
-          {heroImage && (
+          {(heroImage || loading) && (
             <div className="max-w-4xl mx-auto pt-6">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 aspect-video">
-                <Image
-                  src={getMediaUrl(heroImage)}
-                  alt="Platform Showcase"
-                  fill
-                  className="object-cover"
-                  unoptimized
-                  priority
-                />
+                {heroImage ? (
+                  <Image
+                    src={getMediaUrl(heroImage)}
+                    alt="Platform Showcase"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 896px"
+                    className="object-cover"
+                    unoptimized
+                    priority
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-200/60 dark:bg-slate-800/60 animate-pulse" />
+                )}
               </div>
             </div>
           )}
@@ -498,8 +508,8 @@ export default function HomePage() {
         )}
 
         {/* ================= FEATURED COURSES ================= */}
-        {coursesEnabled && courses.length > 0 && (
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+        {coursesEnabled && (
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 min-h-[300px]">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="space-y-1">
                 <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
@@ -519,61 +529,80 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((course) => (
-                <div
-                  key={course.id}
-                  className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-                >
-                  <div className="relative aspect-video w-full bg-slate-100 dark:bg-slate-800">
-                    {course.cover_image_url ? (
-                      <Image
-                        src={getMediaUrl(course.cover_image_url)}
-                        alt={course.title}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-600 bg-brand-50/50 dark:bg-brand-950/30">
-                        <BookOpen className="w-10 h-10 text-brand-400 opacity-60" />
-                      </div>
-                    )}
-                    {course.category && (
-                      <span
-                        className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full text-white shadow-sm"
-                        style={{ backgroundColor: course.category.color || "#2563eb" }}
-                      >
-                        {course.category.name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="p-6 space-y-3 flex-1 flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <h4 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">
-                        {course.title}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {course.description || "หลักสูตรการเรียนการสอนระดับมัธยมศึกษา"}
-                      </p>
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm animate-pulse"
+                  >
+                    <div className="aspect-video w-full bg-slate-200 dark:bg-slate-800" />
+                    <div className="p-6 space-y-3">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4" />
+                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
                     </div>
-
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-                      <span className="flex items-center gap-1 font-medium">
-                        <Layers className="w-3.5 h-3.5 text-brand-500" />
-                        {course.lessons_count || 0} บทเรียน
-                      </span>
-                      {course.teacher && (
-                        <span className="text-[11px] text-slate-400">
-                          ครู{course.teacher.first_name}
+                  </div>
+                ))}
+              </div>
+            ) : courses.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courses.map((course) => (
+                  <div
+                    key={course.id}
+                    className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                  >
+                    <div className="relative aspect-video w-full bg-slate-100 dark:bg-slate-800">
+                      {course.cover_image_url && !imgErrors[course.id] ? (
+                        <Image
+                          src={getMediaUrl(course.cover_image_url)}
+                          alt={course.title}
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 380px"
+                          className="object-cover"
+                          unoptimized
+                          onError={() => setImgErrors(prev => ({ ...prev, [course.id]: true }))}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-600 bg-brand-50/50 dark:bg-brand-950/30">
+                          <BookOpen className="w-10 h-10 text-brand-400 opacity-60" />
+                        </div>
+                      )}
+                      {course.category && (
+                        <span
+                          className="absolute top-3 left-3 text-[10px] font-bold px-2.5 py-1 rounded-full text-white shadow-sm"
+                          style={{ backgroundColor: course.category.color || "#2563eb" }}
+                        >
+                          {course.category.name}
                         </span>
                       )}
                     </div>
+
+                    <div className="p-6 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">
+                          {course.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                          {course.description || "หลักสูตรการเรียนการสอนระดับมัธยมศึกษา"}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                        <span className="flex items-center gap-1 font-medium">
+                          <Layers className="w-3.5 h-3.5 text-brand-500" />
+                          {course.lessons_count || 0} บทเรียน
+                        </span>
+                        {course.teacher && (
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            ครู{course.teacher.first_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : null}
           </section>
         )}
 
@@ -670,7 +699,7 @@ export default function HomePage() {
               <div className="pt-2 flex justify-center">
                 <Link
                   href="/login"
-                  className="bg-white hover:bg-slate-100 text-brand-700 active:scale-95 px-8 py-3.5 rounded-2xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2"
+                  className="bg-white hover:bg-slate-100 text-slate-900 active:scale-95 px-8 py-3.5 rounded-2xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2"
                 >
                   {ctaButtonText}
                   <ArrowRight className="w-4 h-4" />
@@ -692,7 +721,7 @@ export default function HomePage() {
               <p className="font-bold text-slate-900 dark:text-white text-sm">
                 {settings.platform_title || "TUNorth-Hub"}
               </p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {settings.school_name_th || "โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ"}
               </p>
             </div>
@@ -713,7 +742,7 @@ export default function HomePage() {
             )}
           </div>
 
-          <p className="text-[11px] text-slate-400 text-center md:text-right">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center md:text-right">
             {footerText}
           </p>
         </div>

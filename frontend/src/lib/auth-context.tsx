@@ -37,15 +37,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   const fetchCurrentUser = useCallback(async () => {
+    if (typeof window !== "undefined" && !localStorage.getItem("tunorth_has_session")) {
+      setUser(null)
+      setLoading(false)
+      return
+    }
+
     try {
       const res = await apiFetch<User>("/api/auth/me")
       if (res.success && res.data) {
         setUser(res.data)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("tunorth_has_session", "1")
+        }
       } else {
         setUser(null)
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("tunorth_has_session")
+        }
       }
     } catch {
       setUser(null)
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("tunorth_has_session")
+      }
     } finally {
       setLoading(false)
     }
@@ -64,6 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (res.success && res.data?.user) {
       setUser(res.data.user)
+      if (typeof window !== "undefined") {
+        localStorage.setItem("tunorth_has_session", "1")
+      }
     }
     setLoading(false)
     return res
@@ -75,6 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Logout error", e)
     } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("tunorth_has_session")
+      }
       setUser(null)
       // Navigate cleanly to /login without any redirect query params
       window.location.href = "/login"

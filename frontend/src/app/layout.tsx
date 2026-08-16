@@ -24,7 +24,14 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "TUNorth-Hub | แพลตฟอร์มการเรียนรู้ออนไลน์",
-  description: "ระบบการจัดการเรียนรู้ดิจิทัล (LMS EdTech) สำหรับโรงเรียนมัธยมศึกษา",
+  description: "ระบบการจัดการเรียนรู้ดิจิทัล (LMS EdTech) สำหรับโรงเรียนเตรียมอุดมศึกษา ภาคเหนือ",
+  openGraph: {
+    title: "TUNorth-Hub | แพลตฟอร์มการเรียนรู้ออนไลน์",
+    description: "ระบบการจัดการเรียนรู้ดิจิทัล (LMS EdTech) สำหรับโรงเรียนเตรียมอุดมศึกษา ภาคเหนือ",
+    type: "website",
+    locale: "th_TH",
+    siteName: "TUNorth-Hub",
+  },
 }
 
 export default function RootLayout({
@@ -34,6 +41,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${prompt.variable} ${inter.variable} h-full antialiased`}>
+      <head>
+        <link rel="preconnect" href="http://localhost:8080" />
+        <link rel="dns-prefetch" href="http://localhost:8080" />
+      </head>
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans selection:bg-brand-500 selection:text-white">
         <ThemeProvider>
           <AuthProvider>

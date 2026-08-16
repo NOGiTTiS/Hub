@@ -353,6 +353,7 @@
 - [x] Implement **User Profile System** (`/profile` & `/api/profile`) รองรับการดูและแก้ไขข้อมูลส่วนตัว, อัปโหลดรูปภาพ Avatar พร้อม Initials Fallback บน Navbar, เปลี่ยนรหัสผ่านปลอดภัยด้วย Bcrypt, และแสดงสถิติกิจกรรมการเรียนการสอนแบบแยกตาม Role (Student, Teacher, Admin) [ดูแผนงานและ Checklist ย่อยใน docs/user_profile_system_plan.md]
 
 ### 📌 Phase 6: Testing, Performance Hardening & Production Deployment
+- [x] Implement **Google Lighthouse Performance & Accessibility Hardening** (Optimizing LCP, CLS to 0.00, WCAG 2.5.3 Accessibility 100%, Zero-Console Error, Best Practices 100%, SEO 100%, Core Web Vitals) [ดูแผนงานและ Checklist ย่อยใน docs/lighthouse_optimization_plan.md]
 - [ ] Conduct Load Testing for 150 Concurrent Active Users (Video Streaming & API Benchmark)
 - [ ] Configure Nginx Reverse Proxy with Rate Limiting, Static Asset Caching, and SSL Certificates
 - [ ] Implement Automated Database Backup Shell Script (`pg_dump` Cron Job)

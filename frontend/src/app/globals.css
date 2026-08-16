@@ -17,6 +17,7 @@
   --color-brand-800: #38037a;
   --color-brand-900: #2f0463;
   --color-brand-950: #1a023b;
+  --color-brand-foreground: #ffffff;
 }
 
 :root {
