@@ -637,6 +637,7 @@ export default function AdminLandingManagerPage() {
                       fill
                       className="object-cover"
                       unoptimized
+                      priority
                     />
                   </div>
                 )}

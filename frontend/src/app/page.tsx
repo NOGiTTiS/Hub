@@ -289,6 +289,7 @@ export default function HomePage() {
                   fill
                   className="object-cover"
                   unoptimized
+                  priority
                 />
               </div>
             ) : (
@@ -413,6 +414,7 @@ export default function HomePage() {
                   fill
                   className="object-cover"
                   unoptimized
+                  priority
                 />
               </div>
             </div>
