@@ -56,3 +56,7 @@ lighthouse-report*.json
 lighthouse-report*.html
 *-report.json
 *-report.html
+
+# Credentials & Sensitive files
+cookies.txt
+*cookies*.txt
