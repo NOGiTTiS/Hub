@@ -277,6 +277,8 @@
 | `PUT` | `/api/teacher/questions/:id` | TEACHER | แก้ไขโจทย์ ตัวเลือก เฉลย และคะแนนข้อสอบ |
 | `DELETE`| `/api/teacher/questions/:id` | TEACHER | ลบข้อสอบ |
 | `GET` | `/api/teacher/quizzes/:id/stats` | TEACHER | ดึงสถิติและประวัติการทำแบบทดสอบของนักเรียน |
+| `POST` | `/api/teacher/lessons/:lessonId/quizzes/generate-ai` | TEACHER | สร้างข้อสอบอัตโนมัติด้วย Google Gemini AI (Multimodal PDF/Video & Strict Grounding) |
+| `POST` | `/api/teacher/quizzes/:quizId/questions/batch` | TEACHER | บันทึกชุดข้อสอบที่สร้าง/แก้ไขแบบชุด (Batch Create/Append/Replace) |
 
 ### 3.4 การเรียนและการติดตามผล (Student API)
 | Method | Endpoint | สิทธิ์เข้าถึง | หน้าที่การทำงาน |
@@ -333,6 +335,7 @@
 - [x] Build Assignment Creation, Submission & Grading System (Teacher assigns, Student uploads file/text, Teacher grades & feedbacks)
 - [x] Build Interactive Quiz Engine (Question Builder, Timer, Auto-Grading Logic, Attempts History, and Max Attempts Quota Limit)
 - [x] Implement **Quiz & Question Import Engine** (Batch CSV & Excel (.xlsx) Parser, Smart Answer Normalizer, Append & Replace Modes, and Template Download in Quiz Builder) [ดูแผนงานใน docs/quiz_import_system_plan.md]
+- [x] Implement **AI Quiz Generation Engine** (Google Gemini 3.6 Flash Multimodal Analysis สำหรับ PDF & วิดีโอ YouTube/MP4, Strict Content Grounding Prompt, Smart Normalizer, Batch Question Saver พร้อม Teacher Interactive Preview & Edit Modal) [ดูแผนงานใน docs/ai_quiz_generation_plan.md และ docs/ai_quiz_content_grounding_plan.md]
 - [x] Integrate Client-Side Pyodide (WASM) & Monaco Editor for Code Playground Component (with `input()` interactive prompt handling)
 - [x] Implement **Certificate Generation & Verification Engine** (ระบบออกรหัสรับรอง `TUN-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อม Dynamic QR Code เชื่อมโยงตรงสู่ระบบตรวจสอบ, รองรับการสั่งพิมพ์ A4 แนวนอน 1-Page Landscape, หน้าค้นหาหลักสาธารณะ `/verify` พร้อม Search Box & กล้องสแกน QR Code Webcam/Image Upload, และหน้าตรวจสอบความถูกต้องรายบุคคล `/verify/[code]`) [ดูแผนงานใน docs/certificate_verification_enhancement_plan.md]
 - [x] Implement **Lesson Time & Schedule Management System** (ระบบกำหนดระยะเวลาบทเรียน, ตารางเปิด-ปิดเนื้อหา Drip Schedule, เวลาเรียนขั้นต่ำก่อนกดจบ Anti-Skipping Timer พร้อมระบบ Pause on Window Blur & Tab Hidden via Window Focus & Page Visibility API, ระบบ Persistent Timer บันทึกเวลาสะสมลง LocalStorage ไม่สูญหายเมื่อรีเฟรชหน้าเว็บหรือเน็ตหลุด, และแสดงเวลารวมทั้งหมดของคอร์ส) [ดูแผนงานใน docs/lesson_time_system_plan.md]

@@ -103,3 +103,44 @@ func TestImportQuestions_InvalidQuizID(t *testing.T) {
 		t.Errorf("Expected success false, got %v", body["success"])
 	}
 }
+
+func TestGenerateAIQuiz_Unauthorized(t *testing.T) {
+	app := fiber.New()
+	handler := handlers.NewQuizHandler(nil)
+	app.Post("/api/teacher/lessons/:lessonId/quizzes/generate-ai", handler.GenerateAIQuiz)
+
+	req := httptest.NewRequest("POST", "/api/teacher/lessons/"+uuid.New().String()+"/quizzes/generate-ai", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
+	}
+
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Errorf("Expected status 401 Unauthorized, got %d", resp.StatusCode)
+	}
+}
+
+func TestGenerateAIQuiz_InvalidLessonID(t *testing.T) {
+	app := fiber.New()
+	handler := handlers.NewQuizHandler(nil)
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals(middleware.UserContextKey, &utils.JWTClaims{
+			UserID: uuid.New(),
+			Email:  "teacher@tunorth.ac.th",
+			Role:   models.RoleTeacher,
+		})
+		return c.Next()
+	})
+	app.Post("/api/teacher/lessons/:lessonId/quizzes/generate-ai", handler.GenerateAIQuiz)
+
+	req := httptest.NewRequest("POST", "/api/teacher/lessons/invalid-uuid/quizzes/generate-ai", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to send request: %v", err)
+	}
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("Expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+}
+

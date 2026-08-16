@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -128,6 +132,8 @@ func (h *SettingsHandler) UpdateAdminSettings(c *fiber.Ctx) error {
 			category = "BRANDING"
 		} else if strings.HasPrefix(k, "landing_") {
 			category = "LANDING"
+		} else if strings.HasPrefix(k, "ai_") {
+			category = "AI"
 		} else if k == "allow_student_registration" || k == "default_student_password" || k == "max_upload_size_mb" {
 			category = "POLICY"
 		}
@@ -319,3 +325,124 @@ func (h *SettingsHandler) GetSystemHealth(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// TestAIConnection tests the provided or saved Gemini API key
+func (h *SettingsHandler) TestAIConnection(c *fiber.Ctx) error {
+	var body struct {
+		APIKey string `json:"api_key"`
+		Model  string `json:"model"`
+	}
+	_ = c.BodyParser(&body)
+
+	apiKey := strings.TrimSpace(body.APIKey)
+	if apiKey == "" {
+		// Fallback to database
+		var setting models.SystemSetting
+		if err := h.db.DB.Where("key = ?", "ai_gemini_api_key").First(&setting).Error; err == nil && setting.Value != "" {
+			apiKey = strings.TrimSpace(setting.Value)
+		}
+	}
+	if apiKey == "" && h.cfg.GeminiAPIKey != "" {
+		apiKey = strings.TrimSpace(h.cfg.GeminiAPIKey)
+	}
+
+	if apiKey == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบ API Key (กรุณากรอก API Key ก่อนทดสอบ)",
+		})
+	}
+
+	model := strings.TrimSpace(body.Model)
+	if model == "" {
+		model = "gemini-3.6-flash"
+	}
+
+	// Prepare Gemini Interactions API test request (Google's latest standard)
+	apiURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta2/interactions?key=%s", apiKey)
+	reqPayload := map[string]interface{}{
+		"model": model,
+		"input": "Ping",
+	}
+
+	jsonBytes, err := json.Marshal(reqPayload)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "เกิดข้อผิดพลาดในการสร้างคำขอเชื่อมต่อ",
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "เกิดข้อผิดพลาดในการส่งคำขอ",
+		})
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("ไม่สามารถเชื่อมต่อกับ Google Gemini API ได้: %v", err),
+		})
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		// If Interactions API returned error, try fallback to v1beta generateContent
+		fallbackURL := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", model, apiKey)
+		fallbackPayload := map[string]interface{}{
+			"contents": []map[string]interface{}{
+				{
+					"parts": []map[string]interface{}{
+						{"text": "Ping"},
+					},
+				},
+			},
+		}
+		fallbackBytes, _ := json.Marshal(fallbackPayload)
+		fbReq, fbErr := http.NewRequestWithContext(ctx, "POST", fallbackURL, bytes.NewBuffer(fallbackBytes))
+		if fbErr == nil {
+			fbReq.Header.Set("Content-Type", "application/json")
+			fbReq.Header.Set("x-goog-api-key", apiKey)
+			fbResp, fbErr := client.Do(fbReq)
+			if fbErr == nil {
+				defer fbResp.Body.Close()
+				if fbResp.StatusCode == http.StatusOK {
+					return c.JSON(fiber.Map{
+						"success": true,
+						"message": fmt.Sprintf("เชื่อมต่อกับ Google Gemini API (%s) สำเร็จ!", model),
+					})
+				}
+			}
+		}
+
+		var errData map[string]interface{}
+		_ = json.Unmarshal(respBody, &errData)
+		errMsg := fmt.Sprintf("Google API ตอบกลับด้วยรหัส %d", resp.StatusCode)
+		if e, ok := errData["error"].(map[string]interface{}); ok {
+			if msg, ok := e["message"].(string); ok {
+				errMsg = msg
+			}
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("การตรวจสอบ API Key ล้มเหลว: %s", errMsg),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": fmt.Sprintf("เชื่อมต่อกับ Google Gemini Interactions API (%s) สำเร็จ!", model),
+	})
+}
+

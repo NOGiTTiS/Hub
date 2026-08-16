@@ -33,6 +33,13 @@ import {
   BookOpen,
   Users,
   Check,
+  Bot,
+  Sparkles,
+  Key,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Zap,
 } from "lucide-react"
 
 interface StorageItemStats {
@@ -86,7 +93,7 @@ interface SystemHealthData {
   }
 }
 
-type TabKey = "school" | "branding" | "policy" | "announcement" | "health"
+type TabKey = "school" | "branding" | "policy" | "announcement" | "ai" | "health"
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("school")
@@ -100,6 +107,10 @@ export default function AdminSettingsPage() {
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
   const logoInputRef = React.useRef<HTMLInputElement>(null)
   const faviconInputRef = React.useRef<HTMLInputElement>(null)
+
+  // AI states
+  const [showAPIKey, setShowAPIKey] = useState(false)
+  const [testingAI, setTestingAI] = useState(false)
 
   // Form State for Settings
   const [settings, setSettings] = useState<Record<string, string>>({
@@ -124,6 +135,10 @@ export default function AdminSettingsPage() {
     announcement_type: "info",
     maintenance_mode: "false",
     maintenance_message: "",
+    ai_enabled: "true",
+    ai_provider: "gemini",
+    ai_gemini_api_key: "",
+    ai_default_model: "gemini-3.6-flash",
   })
 
   // File Upload Handler for Logo / Favicon
@@ -274,6 +289,34 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const handleTestAI = async () => {
+    if (!settings.ai_gemini_api_key && !settings.ai_gemini_api_key.trim()) {
+      toast.error("กรุณากรอก Google Gemini API Key ก่อนทดสอบ")
+      return
+    }
+
+    setTestingAI(true)
+    try {
+      const res = await apiFetch("/api/admin/settings/test-ai", {
+        method: "POST",
+        body: JSON.stringify({
+          api_key: settings.ai_gemini_api_key,
+          model: settings.ai_default_model || "gemini-3.6-flash",
+        }),
+      })
+
+      if (res.success) {
+        toast.success(res.message || "เชื่อมต่อกับ Google Gemini API สำเร็จ!")
+      } else {
+        toast.error(res.message || "การเชื่อมต่อล้มเหลว กรุณาตรวจสอบ API Key")
+      }
+    } catch {
+      toast.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์เพื่อทดสอบ API ได้")
+    } finally {
+      setTestingAI(false)
+    }
+  }
+
   const tabs = [
     {
       id: "school" as TabKey,
@@ -298,6 +341,12 @@ export default function AdminSettingsPage() {
       label: "ประกาศ & โหมดปรับปรุง",
       icon: Megaphone,
       desc: "แถบประกาศข่าวสารและ Maintenance",
+    },
+    {
+      id: "ai" as TabKey,
+      label: "AI & ผู้ช่วยอัจฉริยะ",
+      icon: Sparkles,
+      desc: "Google Gemini API & AI Quiz Generator",
     },
     {
       id: "health" as TabKey,
@@ -358,7 +407,7 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* TABS NAVIGATION */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
         {tabs.map((t) => {
           const Icon = t.icon
           const isActive = activeTab === t.id
@@ -1134,7 +1183,159 @@ export default function AdminSettingsPage() {
               </div>
             )}
 
-            {/* ----------------- TAB 4: SYSTEM HEALTH & DIAGNOSTICS ----------------- */}
+            {/* ----------------- TAB 5: AI & SMART ASSISTANT (GEMINI CONFIG) ----------------- */}
+            {activeTab === "ai" && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                    การตั้งค่า AI และระบบผู้ช่วยอัจฉริยะ (Google Gemini)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    เชื่อมต่อ Google Gemini API เพื่อเปิดใช้งานฟีเจอร์สร้างแบบทดสอบอัตโนมัติจากเนื้อหาบทเรียนสำหรับครูผู้สอน
+                  </p>
+                </div>
+
+                {/* AI SWITCH CARD */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Bot className="w-4 h-4 text-brand-500" />
+                        เปิดใช้งานระบบ AI ช่วยสร้างแบบทดสอบ (AI Quiz Generator)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        เมื่อเปิดใช้งาน ครูผู้สอนจะสามารถกดปุ่ม "🤖 สร้างด้วย AI" ในตัวจัดการแบบทดสอบ (Quiz Builder) ได้
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={settings.ai_enabled === "true"}
+                        onChange={(e) =>
+                          handleInputChange("ai_enabled", e.target.checked ? "true" : "false")
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* GEMINI CONFIG CARD */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Bot className="w-3.5 h-3.5 text-brand-500" />
+                        ผู้ให้บริการ AI (AI Provider)
+                      </label>
+                      <select
+                        value={settings.ai_provider || "gemini"}
+                        onChange={(e) => handleInputChange("ai_provider", e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      >
+                        <option value="gemini">Google Gemini (ทางการ)</option>
+                      </select>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        รองรับการประมวลผลข้อความและบริบทบทเรียนภาษาไทยได้อย่างแม่นยำ
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        โมเดล AI เริ่มต้น (Default Model)
+                      </label>
+                      <select
+                        value={settings.ai_default_model || "gemini-3.6-flash"}
+                        onChange={(e) => handleInputChange("ai_default_model", e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      >
+                        <option value="gemini-3.6-flash">Gemini 3.6 Flash (แนะนำ - Interactions API ล่าสุด รวดเร็วและแม่นยำสูง)</option>
+                        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (ความเร็วสูงสุด ประหยัด Token)</option>
+                        <option value="gemini-3.6-pro">Gemini 3.6 Pro (ประสิทธิภาพสูงสุด เหมาะกับเนื้อหายาว)</option>
+                      </select>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        ใช้งาน Google Gemini Interactions API มาตรฐานล่าสุดสำหรับการประมวลผลคำถาม
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* API KEY INPUT */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-amber-500" />
+                        Google Gemini API Key <span className="text-rose-500">*</span>
+                      </label>
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 hover:underline"
+                      >
+                        <span>ขอรับ API Key ฟรี (Google AI Studio)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showAPIKey ? "text" : "password"}
+                          value={settings.ai_gemini_api_key || ""}
+                          onChange={(e) => handleInputChange("ai_gemini_api_key", e.target.value)}
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-mono"
+                          placeholder="AIzaSy..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAPIKey(!showAPIKey)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showAPIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleTestAI}
+                        disabled={testingAI || !settings.ai_gemini_api_key}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                      >
+                        {testingAI ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                            กำลังทดสอบ...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-3.5 h-3.5 text-amber-600" />
+                            ทดสอบการเชื่อมต่อ API
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* INFO BOX */}
+                  <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 flex items-start gap-3">
+                    <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                      <p className="font-bold">ขั้นตอนการตั้งค่า Google Gemini API Key สำหรับโรงเรียน:</p>
+                      <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-amber-800/90 dark:text-amber-300/90">
+                        <li>เข้าสู่ระบบที่ <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-semibold">Google AI Studio</a> ด้วยบัญชี Google</li>
+                        <li>กดปุ่ม <strong>Create API Key</strong> และคัดลอกคีย์ขึ้นต้นด้วย <code className="font-mono bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded">AIzaSy...</code></li>
+                        <li>นำคีย์มากรอกลงในช่องด้านบน แล้วกด <strong>"ทดสอบการเชื่อมต่อ API"</strong></li>
+                        <li>กดปุ่ม <strong>"บันทึกการตั้งค่า"</strong> ด้านบนขวาเพื่อเริ่มใช้งาน</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ----------------- TAB 6: SYSTEM HEALTH & DIAGNOSTICS ----------------- */}
             {activeTab === "health" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">

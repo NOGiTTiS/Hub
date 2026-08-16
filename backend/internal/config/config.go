@@ -14,6 +14,7 @@ type Config struct {
 	JWTSecret      string
 	UploadDir      string
 	AllowedOrigins string
+	GeminiAPIKey   string
 }
 
 func LoadConfig() *Config {
@@ -26,6 +27,7 @@ func LoadConfig() *Config {
 	jwtSecret := getEnv("JWT_SECRET", "tunorth-hub-super-secure-jwt-secret-key-2026")
 	uploadDir := getEnv("UPLOAD_DIR", "./uploads")
 	allowedOrigins := getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:80,http://localhost")
+	geminiAPIKey := getEnv("GEMINI_API_KEY", "")
 
 	return &Config{
 		AppEnv:         appEnv,
@@ -35,6 +37,7 @@ func LoadConfig() *Config {
 		JWTSecret:      jwtSecret,
 		UploadDir:      uploadDir,
 		AllowedOrigins: allowedOrigins,
+		GeminiAPIKey:   geminiAPIKey,
 	}
 }
 

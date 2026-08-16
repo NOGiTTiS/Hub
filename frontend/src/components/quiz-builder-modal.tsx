@@ -22,6 +22,11 @@ import {
   AlertCircle,
   FileText,
   Layers,
+  Sparkles,
+  Bot,
+  Wand2,
+  Sliders,
+  Check,
 } from "lucide-react"
 
 interface Question {
@@ -68,6 +73,15 @@ interface ImportErrorItem {
   error: string
 }
 
+interface AIQuestionDraft {
+  question_text: string
+  question_type: string
+  options: string[]
+  correct_answer: string
+  points: number
+  explanation?: string
+}
+
 export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilderModalProps) {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null)
@@ -102,6 +116,25 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
   const [isDragOverQuiz, setIsDragOverQuiz] = useState(false)
   const [importErrors, setImportErrors] = useState<ImportErrorItem[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // AI Quiz Generator States
+  const [showAIGenModal, setShowAIGenModal] = useState(false)
+  const [showAIPreviewModal, setShowAIPreviewModal] = useState(false)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [isSavingAIQuestions, setIsSavingAIQuestions] = useState(false)
+  const [aiFile, setAiFile] = useState<File | null>(null)
+  const aiFileInputRef = useRef<HTMLInputElement>(null)
+  const [aiGenForm, setAiGenForm] = useState({
+    question_count: 5,
+    difficulty: "MEDIUM",
+    question_type: "MULTIPLE_CHOICE",
+    custom_instructions: "",
+    custom_context: "",
+    include_lesson_text: true,
+    include_lesson_media: true,
+  })
+  const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<AIQuestionDraft[]>([])
+  const [aiSaveMode, setAiSaveMode] = useState<"append" | "replace">("append")
 
   // Stats
   const [attempts, setAttempts] = useState<Attempt[]>([])
@@ -364,6 +397,142 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
     setIsUploadingQuiz(false)
   }
 
+  // --- AI GENERATOR ACTIONS ---
+  const handleOpenAIGenModal = () => {
+    setShowAIGenModal(true)
+  }
+
+  const handleGenerateAI = async () => {
+    if (!activeQuiz) {
+      toast.error("กรุณาเลือกหรือสร้างชุดแบบทดสอบก่อนใช้งาน AI")
+      return
+    }
+
+    setIsGeneratingAI(true)
+    try {
+      let res
+      if (aiFile) {
+        const formData = new FormData()
+        formData.append("file", aiFile)
+        formData.append("question_count", String(aiGenForm.question_count))
+        formData.append("difficulty", aiGenForm.difficulty)
+        formData.append("question_type", aiGenForm.question_type)
+        formData.append("custom_instructions", aiGenForm.custom_instructions)
+        formData.append("custom_context", aiGenForm.custom_context)
+        formData.append("include_lesson_text", String(aiGenForm.include_lesson_text))
+        formData.append("include_lesson_media", String(aiGenForm.include_lesson_media))
+
+        res = await apiFetch<{
+          quiz_title: string
+          questions: AIQuestionDraft[]
+        }>(`/api/teacher/lessons/${lessonId}/quizzes/generate-ai`, {
+          method: "POST",
+          body: formData,
+        })
+      } else {
+        res = await apiFetch<{
+          quiz_title: string
+          questions: AIQuestionDraft[]
+        }>(`/api/teacher/lessons/${lessonId}/quizzes/generate-ai`, {
+          method: "POST",
+          body: JSON.stringify(aiGenForm),
+        })
+      }
+
+      if (res.success && res.data?.questions && res.data.questions.length > 0) {
+        toast.success(`AI สร้างข้อสอบสำเร็จ (${res.data.questions.length} ข้อ)`)
+        setAiGeneratedQuestions(res.data.questions)
+        setShowAIGenModal(false)
+        setShowAIPreviewModal(true)
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการสร้างข้อสอบด้วย AI")
+      }
+    } catch {
+      toast.error("ไม่สามารถเชื่อมต่อกับบริการ AI ได้")
+    } finally {
+      setIsGeneratingAI(false)
+    }
+  }
+
+  const handleAIQuestionChange = (index: number, field: keyof AIQuestionDraft, value: any) => {
+    setAiGeneratedQuestions((prev) => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
+  }
+
+  const handleAIOptionChange = (qIndex: number, optIndex: number, value: string) => {
+    setAiGeneratedQuestions((prev) => {
+      const updated = [...prev]
+      const currentOpt = updated[qIndex].options[optIndex]
+      const wasCorrect = updated[qIndex].correct_answer === currentOpt
+      const newOptions = [...updated[qIndex].options]
+      newOptions[optIndex] = value
+      updated[qIndex] = {
+        ...updated[qIndex],
+        options: newOptions,
+        correct_answer: wasCorrect ? value : updated[qIndex].correct_answer,
+      }
+      return updated
+    })
+  }
+
+  const handleDeleteAIQuestion = (index: number) => {
+    setAiGeneratedQuestions((prev) => prev.filter((_, idx) => idx !== index))
+  }
+
+  const handleAddAIDraftQuestion = () => {
+    setAiGeneratedQuestions((prev) => [
+      ...prev,
+      {
+        question_text: "โจทย์คำถามใหม่",
+        question_type: "MULTIPLE_CHOICE",
+        options: ["ตัวเลือก 1", "ตัวเลือก 2", "ตัวเลือก 3", "ตัวเลือก 4"],
+        correct_answer: "ตัวเลือก 1",
+        points: 1,
+        explanation: "",
+      },
+    ])
+  }
+
+  const handleSaveAIBatch = async () => {
+    if (!activeQuiz) return
+    if (aiGeneratedQuestions.length === 0) {
+      toast.error("ไม่มีรายการข้อสอบให้บันทึก")
+      return
+    }
+
+    if (aiSaveMode === "replace") {
+      const confirmed = confirm("คำเตือน: โหมด 'แทนที่ทั้งหมด' จะลบข้อสอบเดิมทั้งหมดในชุดนี้ และแทนที่ด้วยข้อสอบจาก AI ต้องการดำเนินการต่อหรือไม่?")
+      if (!confirmed) return
+    }
+
+    setIsSavingAIQuestions(true)
+    try {
+      const res = await apiFetch(`/api/teacher/quizzes/${activeQuiz.id}/questions/batch`, {
+        method: "POST",
+        body: JSON.stringify({
+          mode: aiSaveMode,
+          questions: aiGeneratedQuestions,
+        }),
+      })
+
+      if (res.success) {
+        toast.success(res.message || "บันทึกข้อสอบจาก AI เรียบร้อยแล้ว")
+        setShowAIPreviewModal(false)
+        setAiGeneratedQuestions([])
+        fetchQuizzes()
+      } else {
+        toast.error(res.message || "เกิดข้อผิดพลาดในการบันทึกข้อสอบ")
+      }
+    } catch {
+      toast.error("เกิดข้อผิดพลาดในการบันทึกข้อสอบ")
+    } finally {
+      setIsSavingAIQuestions(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-5xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
@@ -548,14 +717,23 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                   <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">
                     ข้อสอบทั้งหมดในชุดนี้ ({activeQuiz.questions?.length || 0} ข้อ)
                   </h4>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenAIGenModal}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition shadow-sm"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                      🤖 สร้างด้วย AI (AI Generator)
+                    </button>
+
                     <button
                       type="button"
                       onClick={handleOpenImportModal}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-sm"
                     >
                       <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      นำเข้าไฟล์ข้อสอบ (CSV / Excel)
+                      นำเข้าไฟล์ (CSV/Excel)
                     </button>
 
                     <button
@@ -574,9 +752,17 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                     <FileText className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-700" />
                     <div>
                       <p className="text-xs font-bold text-slate-700 dark:text-slate-300">ยังไม่มีคำถามในแบบทดสอบนี้</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">คุณสามารถพิมพ์สร้างข้อสอบทีละข้อ หรืออัปโหลดไฟล์แม่แบบ CSV/Excel เข้ามาพร้อมกันได้</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">คุณสามารถให้ AI ช่วยสร้างจากเนื้อหาบทเรียนอัตโนมัติ, นำเข้าจากไฟล์ หรือพิมพ์สร้างทีละข้อได้</p>
                     </div>
-                    <div className="flex items-center justify-center gap-3 pt-1">
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleOpenAIGenModal}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md transition"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        🤖 สร้างด้วย AI อัจฉริยะ
+                      </button>
                       <button
                         type="button"
                         onClick={handleOpenAddQuestion}
@@ -591,7 +777,7 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-sm"
                       >
                         <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                        นำเข้าไฟล์ข้อสอบ (CSV / Excel)
+                        นำเข้าไฟล์ (CSV / Excel)
                       </button>
                     </div>
                   </div>
@@ -1133,6 +1319,523 @@ export function QuizBuilderModal({ lessonId, lessonTitle, onClose }: QuizBuilder
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- MODAL 3: AI QUIZ GENERATION SETTINGS MODAL --- */}
+        {showAIGenModal && (
+          <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-900/50 rounded-3xl p-5 sm:p-7 max-w-xl w-full shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+              {/* HEADER */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                      <Bot className="w-3 h-3" />
+                      Google Gemini AI Generator
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      สร้างชุดแบบทดสอบอัตโนมัติด้วย AI
+                    </h3>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAIGenModal(false)}
+                  disabled={isGeneratingAI}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* FORM BODY */}
+              <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
+                {/* QUESTION COUNT */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    จำนวนข้อที่ต้องการสร้าง
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[3, 5, 10, 15, 20].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setAiGenForm({ ...aiGenForm, question_count: num })}
+                        className={`py-2 rounded-xl text-xs font-bold transition border ${
+                          aiGenForm.question_count === num
+                            ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20"
+                            : "border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-950/40"
+                        }`}
+                      >
+                        {num} ข้อ
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DIFFICULTY */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    ระดับความยากของคำถาม
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "EASY", label: "ง่าย", desc: "วัดความจำ & นิยาม" },
+                      { id: "MEDIUM", label: "ปานกลาง", desc: "วัดความเข้าใจ & ประยุกต์" },
+                      { id: "HARD", label: "ท้าทาย", desc: "วิเคราะห์ & แก้ปัญหา" },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setAiGenForm({ ...aiGenForm, difficulty: d.id })}
+                        className={`p-2.5 rounded-xl text-left transition border ${
+                          aiGenForm.difficulty === d.id
+                            ? "bg-purple-50 dark:bg-purple-950/50 border-purple-500 text-purple-900 dark:text-purple-200"
+                            : "border-slate-200 dark:border-slate-800 hover:border-purple-200 dark:hover:border-purple-800 text-slate-600 dark:text-slate-400"
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{d.label}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{d.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* QUESTION TYPE */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    ประเภทข้อสอบ
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "MULTIPLE_CHOICE", label: "ปรนัย 4 ตัวเลือก" },
+                      { id: "TRUE_FALSE", label: "ถูก / ผิด (T/F)" },
+                      { id: "MIXED", label: "ผสมผสาน" },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setAiGenForm({ ...aiGenForm, question_type: t.id })}
+                        className={`py-2 px-2 text-center rounded-xl text-xs font-bold transition border ${
+                          aiGenForm.question_type === t.id
+                            ? "bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20"
+                            : "border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-950/40"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DETECTED LESSON GROUNDING INFO BOX */}
+                <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 space-y-1">
+                  <div className="text-xs font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    ระบบสร้างข้อสอบแบบ Strict Content Grounding
+                  </div>
+                  <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                    AI จะวิเคราะห์เนื้อหาจริงจากบทเรียนเรื่อง &quot;{lessonTitle}&quot; รวมถึงเอกสารสไลด์ PDF และคลิปวิดีโอ (YouTube/MP4) ที่ผูกอยู่กับบทเรียนนี้ เพื่อออกข้อสอบที่ตรงกับเนื้อหา 100%
+                  </p>
+                </div>
+
+                {/* CONTENT SOURCES TOGGLES */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 cursor-pointer">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        ดึงเนื้อหาข้อความ
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        ข้อความในบทเรียน
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={aiGenForm.include_lesson_text}
+                      onChange={(e) => setAiGenForm({ ...aiGenForm, include_lesson_text: e.target.checked })}
+                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 cursor-pointer">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        ดึงสไลด์ PDF & คลิปวิดีโอ
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        Multimodal Analysis
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={aiGenForm.include_lesson_media}
+                      onChange={(e) => setAiGenForm({ ...aiGenForm, include_lesson_media: e.target.checked })}
+                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
+                    />
+                  </label>
+                </div>
+
+                {/* OPTIONAL FILE ATTACHMENT */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>แนบไฟล์เอกสารเสริมเฉพาะ (PDF / TXT)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">ระบุหรือไม่ก็ได้ (สูงสุด 25MB)</span>
+                  </label>
+                  <input
+                    ref={aiFileInputRef}
+                    type="file"
+                    accept=".pdf,.txt,.docx"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setAiFile(e.target.files[0])
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  {aiFile ? (
+                    <div className="flex items-center justify-between p-3 rounded-2xl border border-purple-300 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/30 text-xs">
+                      <div className="flex items-center gap-2 text-purple-900 dark:text-purple-200 font-bold truncate">
+                        <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+                        <span className="truncate">{aiFile.name}</span>
+                        <span className="text-[10px] text-slate-400 font-normal shrink-0">
+                          ({(aiFile.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAiFile(null)
+                          if (aiFileInputRef.current) aiFileInputRef.current.value = ""
+                        }}
+                        className="text-red-500 hover:text-red-700 p-1 font-bold text-xs"
+                      >
+                        ลบออก
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => aiFileInputRef.current?.click()}
+                      className="p-3 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-purple-400 dark:hover:border-purple-600 rounded-2xl text-center cursor-pointer transition bg-slate-50/50 dark:bg-slate-950/30"
+                    >
+                      <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                        คลิกเพื่อแนบไฟล์ PDF หรือ Text เพิ่มเติมสำหรับชุดนี้
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* CUSTOM INSTRUCTIONS */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>คำสั่งพิเศษเพิ่มเติม (Prompt Guidance)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">ระบุหรือไม่ก็ได้</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={aiGenForm.custom_instructions}
+                    onChange={(e) => setAiGenForm({ ...aiGenForm, custom_instructions: e.target.value })}
+                    placeholder="เช่น เน้นออกข้อสอบเรื่องการคำนวณ, ห้ามมีตัวเลือกคำตอบที่เป็นคำศัพท์ภาษาอังกฤษ"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none"
+                  />
+                </div>
+
+                {/* CUSTOM CONTEXT */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>เนื้อหาเสริมเฉพาะบทเรียน (Additional Content)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">ระบุหรือไม่ก็ได้</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={aiGenForm.custom_context}
+                    onChange={(e) => setAiGenForm({ ...aiGenForm, custom_context: e.target.value })}
+                    placeholder="ใส่เนื้อหาเพิ่มเติม หรือกรณีที่ต้องการป้อนข้อความสรุปเพิ่มเติมเอง"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* MODAL FOOTER */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAIGenModal(false)}
+                  disabled={isGeneratingAI}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateAI}
+                  disabled={isGeneratingAI}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/20 transition disabled:opacity-50"
+                >
+                  {isGeneratingAI ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      AI กำลังประมวลผลสร้างข้อสอบ...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      🚀 เริ่มสร้างข้อสอบ ({aiGenForm.question_count} ข้อ)
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- MODAL 4: AI QUIZ PREVIEW & EDIT MODAL --- */}
+        {showAIPreviewModal && (
+          <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-900/50 rounded-3xl p-5 sm:p-7 max-w-4xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+              {/* HEADER */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Wand2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                      AI Generated Questions Preview
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      ตรวจสอบและปรับแต่งข้อสอบที่ AI สร้างขึ้น ({aiGeneratedQuestions.length} ข้อ)
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddAIDraftQuestion}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/50 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold transition border border-purple-200 dark:border-purple-800"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    เพิ่มข้อเอง
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAIPreviewModal(false)}
+                    disabled={isSavingAIQuestions}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* QUESTIONS LIST */}
+              <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
+                {aiGeneratedQuestions.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400">
+                    ไม่มีรายการข้อสอบ (ถูกลบออกทั้งหมด)
+                  </div>
+                ) : (
+                  aiGeneratedQuestions.map((q, qIdx) => (
+                    <div
+                      key={qIdx}
+                      className="p-4 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/20 dark:bg-purple-950/20 space-y-3"
+                    >
+                      {/* QUESTION CARD HEADER */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                            {qIdx + 1}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                            {q.question_type === "TRUE_FALSE" ? "ถูก / ผิด" : "ปรนัย 4 ตัวเลือก"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="text-slate-500 text-[11px]">คะแนน:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={q.points}
+                              onChange={(e) => handleAIQuestionChange(qIdx, "points", parseInt(e.target.value) || 1)}
+                              className="w-12 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-center text-xs font-bold bg-white dark:bg-slate-800"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAIQuestion(qIdx)}
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition"
+                            title="ลบข้อนี้"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* QUESTION TEXT */}
+                      <div>
+                        <textarea
+                          rows={2}
+                          value={q.question_text}
+                          onChange={(e) => handleAIQuestionChange(qIdx, "question_text", e.target.value)}
+                          placeholder="พิมพ์โจทย์คำถาม..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none"
+                        />
+                      </div>
+
+                      {/* OPTIONS */}
+                      {q.question_type === "TRUE_FALSE" ? (
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            กำหนดเฉลยที่ถูกต้อง:
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {["จริง", "เท็จ"].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleAIQuestionChange(qIdx, "correct_answer", opt)}
+                                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-between border ${
+                                  q.correct_answer === opt
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                    : "border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {q.correct_answer === opt && <Check className="w-3.5 h-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            ตัวเลือกคำตอบ (คลิกเครื่องหมายถูกเพื่อกำหนดเฉลย):
+                          </label>
+                          <div className="space-y-1.5">
+                            {q.options.map((opt, optIdx) => {
+                              const isCorrect = q.correct_answer === opt
+                              const labels = ["ก", "ข", "ค", "ง", "จ", "ฉ"]
+                              return (
+                                <div key={optIdx} className="flex items-center gap-2">
+                                  <span className="w-6 text-center text-xs font-bold text-slate-500">
+                                    {labels[optIdx] || optIdx + 1}.
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={opt}
+                                    onChange={(e) => handleAIOptionChange(qIdx, optIdx, e.target.value)}
+                                    placeholder={`ตัวเลือก ${labels[optIdx] || optIdx + 1}`}
+                                    className={`flex-1 px-3 py-1.5 rounded-xl border text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-800 focus:outline-none ${
+                                      isCorrect
+                                        ? "border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20 ring-1 ring-emerald-500"
+                                        : "border-slate-200 dark:border-slate-700"
+                                    }`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAIQuestionChange(qIdx, "correct_answer", opt)}
+                                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 ${
+                                      isCorrect
+                                        ? "bg-emerald-600 text-white shadow-sm"
+                                        : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    }`}
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    {isCorrect ? "เฉลย" : "เลือกเฉลย"}
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* EXPLANATION */}
+                      {q.explanation && (
+                        <div className="p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-300 space-y-0.5">
+                          <span className="font-bold flex items-center gap-1">
+                            💡 คำอธิบายเฉลย:
+                          </span>
+                          <p>{q.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* FOOTER & SAVE MODE */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    เลือกรูปแบบการบันทึก:
+                  </div>
+                  <div className="flex items-center gap-4 text-xs font-bold">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-slate-300">
+                      <input
+                        type="radio"
+                        name="aiSaveMode"
+                        checked={aiSaveMode === "append"}
+                        onChange={() => setAiSaveMode("append")}
+                        className="text-purple-600 focus:ring-purple-500"
+                      />
+                      <span>เพิ่มต่อท้าย ({activeQuiz?.questions?.length || 0} ข้อเดิม)</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-amber-600 dark:text-amber-400">
+                      <input
+                        type="radio"
+                        name="aiSaveMode"
+                        checked={aiSaveMode === "replace"}
+                        onChange={() => setAiSaveMode("replace")}
+                        className="text-amber-600 focus:ring-amber-500"
+                      />
+                      <span>แทนที่ข้อสอบเดิมทั้งหมด</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAIPreviewModal(false)}
+                    disabled={isSavingAIQuestions}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveAIBatch}
+                    disabled={isSavingAIQuestions || aiGeneratedQuestions.length === 0}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/20 transition disabled:opacity-50"
+                  >
+                    {isSavingAIQuestions ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        กำลังบันทึกข้อสอบ...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        💾 บันทึกลงชุดแบบทดสอบ ({aiGeneratedQuestions.length} ข้อ)
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -105,6 +107,113 @@ func (h *QuizHandler) GetLessonQuizzes(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    quizzes,
+	})
+}
+
+// GenerateAIQuiz generates quiz questions from lesson content using Gemini AI
+func (h *QuizHandler) GenerateAIQuiz(c *fiber.Ctx) error {
+	lessonID, err := uuid.Parse(c.Params("lessonId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสบทเรียนไม่ถูกต้อง",
+		})
+	}
+
+	claims := middleware.GetCurrentUser(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "กรุณาเข้าสู่ระบบ",
+		})
+	}
+
+	if h.db == nil || h.db.DB == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ระบบฐานข้อมูลไม่พร้อมใช้งาน",
+		})
+	}
+
+	// Check ownership if not admin
+	if claims.Role != models.RoleAdmin {
+		var lesson models.Lesson
+		if err := h.db.DB.First(&lesson, "id = ?", lessonID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบบทเรียนที่ระบุ",
+			})
+		}
+
+		var module models.Module
+		if err := h.db.DB.First(&module, "id = ?", lesson.ModuleID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบโมดูลของบทเรียนนี้",
+			})
+		}
+
+		var course models.Course
+		if err := h.db.DB.First(&course, "id = ?", module.CourseID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบคอร์สวิชาของบทเรียนนี้",
+			})
+		}
+
+		if course.TeacherID != claims.UserID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"message": "คุณไม่มีสิทธิ์สร้างข้อสอบในรายวิชานี้",
+			})
+		}
+	}
+
+	var req services.AIQuizGenRequest
+	contentType := c.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if qc, err := strconv.Atoi(c.FormValue("question_count")); err == nil && qc > 0 {
+			req.QuestionCount = qc
+		} else {
+			req.QuestionCount = 5
+		}
+		req.Difficulty = c.FormValue("difficulty", "MEDIUM")
+		req.QuestionType = c.FormValue("question_type", "MULTIPLE_CHOICE")
+		req.CustomInstructions = c.FormValue("custom_instructions")
+		req.CustomContext = c.FormValue("custom_context")
+		req.IncludeLessonText = c.FormValue("include_lesson_text") != "false"
+		req.IncludeLessonMedia = c.FormValue("include_lesson_media") != "false"
+		req.Model = c.FormValue("model")
+
+		// Check optional attached document file
+		if fileHeader, err := c.FormFile("file"); err == nil && fileHeader != nil {
+			if fileHeader.Size <= 25*1024*1024 {
+				if f, err := fileHeader.Open(); err == nil {
+					defer f.Close()
+					if data, err := io.ReadAll(f); err == nil {
+						req.UploadedFileBytes = data
+						req.UploadedFileName = fileHeader.Filename
+						req.UploadedFileMime = fileHeader.Header.Get("Content-Type")
+					}
+				}
+			}
+		}
+	} else {
+		_ = c.BodyParser(&req)
+	}
+
+	result, err := services.GenerateQuizFromLesson(c.Context(), h.db.DB, lessonID, req, "")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("เกิดข้อผิดพลาดในการสร้างข้อสอบด้วย AI: %v", err),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "สร้างข้อสอบด้วย AI สำเร็จ",
+		"data":    result,
 	})
 }
 
@@ -242,6 +351,133 @@ func (h *QuizHandler) CreateQuestion(c *fiber.Ctx) error {
 		"success": true,
 		"message": "เพิ่มข้อสอบสำเร็จ",
 		"data":    question,
+	})
+}
+
+type BatchCreateQuestionsRequest struct {
+	Mode      string                  `json:"mode"` // "append" or "replace"
+	Questions []CreateQuestionRequest `json:"questions"`
+}
+
+// BatchCreateQuestions inserts or replaces multiple questions atomically
+func (h *QuizHandler) BatchCreateQuestions(c *fiber.Ctx) error {
+	quizID, err := uuid.Parse(c.Params("quizId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "รหัสแบบทดสอบไม่ถูกต้อง",
+		})
+	}
+
+	claims := middleware.GetCurrentUser(c)
+	if claims == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "กรุณาเข้าสู่ระบบ",
+		})
+	}
+
+	var quiz models.Quiz
+	if err := h.db.DB.First(&quiz, "id = ?", quizID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่พบแบบทดสอบ",
+		})
+	}
+
+	// Check ownership if not admin
+	if claims.Role != models.RoleAdmin {
+		var lesson models.Lesson
+		if err := h.db.DB.First(&lesson, "id = ?", quiz.LessonID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบบทเรียน",
+			})
+		}
+		var module models.Module
+		if err := h.db.DB.First(&module, "id = ?", lesson.ModuleID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบโมดูล",
+			})
+		}
+		var course models.Course
+		if err := h.db.DB.First(&course, "id = ?", module.CourseID).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่พบคอร์สวิชา",
+			})
+		}
+		if course.TeacherID != claims.UserID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"message": "คุณไม่มีสิทธิ์จัดการแบบทดสอบในคอร์สนี้",
+			})
+		}
+	}
+
+	var req BatchCreateQuestionsRequest
+	if err := c.BodyParser(&req); err != nil || len(req.Questions) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่มีรายการข้อสอบที่ต้องการบันทึก",
+		})
+	}
+
+	tx := h.db.DB.Begin()
+
+	if strings.ToLower(req.Mode) == "replace" {
+		if err := tx.Where("quiz_id = ?", quizID).Delete(&models.QuizQuestion{}).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "ไม่สามารถลบข้อสอบเดิมได้",
+			})
+		}
+	}
+
+	for _, q := range req.Questions {
+		if strings.TrimSpace(q.QuestionText) == "" {
+			continue
+		}
+		qType := q.QuestionType
+		if qType == "" {
+			qType = "MULTIPLE_CHOICE"
+		}
+		pts := q.Points
+		if pts <= 0 {
+			pts = 1
+		}
+		optJSON, _ := json.Marshal(q.Options)
+
+		newQ := models.QuizQuestion{
+			ID:            uuid.New(),
+			QuizID:        quizID,
+			QuestionText:  strings.TrimSpace(q.QuestionText),
+			QuestionType:  qType,
+			OptionsJSON:   string(optJSON),
+			CorrectAnswer: strings.TrimSpace(q.CorrectAnswer),
+			Points:        pts,
+		}
+		if err := tx.Create(&newQ).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "เกิดข้อผิดพลาดในการบันทึกข้อสอบ",
+			})
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลได้",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": fmt.Sprintf("บันทึกข้อสอบ %d ข้อเรียบร้อยแล้ว", len(req.Questions)),
 	})
 }
 

@@ -93,6 +93,7 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	adminGroup.Get("/settings", settingsHandler.GetAdminSettings)
 	adminGroup.Put("/settings", settingsHandler.UpdateAdminSettings)
 	adminGroup.Get("/settings/system-health", settingsHandler.GetSystemHealth)
+	adminGroup.Post("/settings/test-ai", settingsHandler.TestAIConnection)
 	adminGroup.Get("/courses/:id/students", courseHandler.ListCourseStudents)
 	adminGroup.Delete("/courses/:id/students/:studentId", courseHandler.RemoveStudentFromCourse)
 
@@ -136,10 +137,12 @@ func SetupRoutes(app *fiber.App, cfg *config.Config, db *database.Database) {
 	// Teacher Quiz Management
 	teacherGroup.Get("/quizzes/template", quizHandler.DownloadQuizTemplate)
 	teacherGroup.Post("/lessons/:lessonId/quizzes", quizHandler.CreateQuiz)
+	teacherGroup.Post("/lessons/:lessonId/quizzes/generate-ai", quizHandler.GenerateAIQuiz)
 	teacherGroup.Get("/lessons/:lessonId/quizzes", quizHandler.GetLessonQuizzes)
 	teacherGroup.Put("/quizzes/:id", quizHandler.UpdateQuiz)
 	teacherGroup.Delete("/quizzes/:id", quizHandler.DeleteQuiz)
 	teacherGroup.Post("/quizzes/:quizId/questions", quizHandler.CreateQuestion)
+	teacherGroup.Post("/quizzes/:quizId/questions/batch", quizHandler.BatchCreateQuestions)
 	teacherGroup.Post("/quizzes/:quizId/import", quizHandler.ImportQuestions)
 	teacherGroup.Put("/questions/:id", quizHandler.UpdateQuestion)
 	teacherGroup.Delete("/questions/:id", quizHandler.DeleteQuestion)
