@@ -22,7 +22,21 @@ func LoadConfig() *Config {
 
 	appEnv := getEnv("APP_ENV", "development")
 	port := getEnv("PORT", "8080")
-	dbURL := getEnv("DATABASE_URL", "host=localhost user=postgres password=postgres dbname=tunorth_hub port=5432 sslmode=disable TimeZone=Asia/Bangkok")
+
+	dbHost := getEnv("DB_HOST", "")
+	dbUser := getEnv("DB_USER", "postgres")
+	dbPass := getEnv("DB_PASSWORD", "postgres")
+	dbName := getEnv("DB_NAME", "tunorth_hub")
+	dbPort := getEnv("DB_PORT", "5432")
+
+	var defaultDBURL string
+	if dbHost != "" {
+		defaultDBURL = "host=" + dbHost + " user=" + dbUser + " password=" + dbPass + " dbname=" + dbName + " port=" + dbPort + " sslmode=disable TimeZone=Asia/Bangkok"
+	} else {
+		defaultDBURL = "host=localhost user=postgres password=postgres dbname=tunorth_hub port=5432 sslmode=disable TimeZone=Asia/Bangkok"
+	}
+	dbURL := getEnv("DATABASE_URL", defaultDBURL)
+
 	redisURL := getEnv("REDIS_URL", "localhost:6379")
 	jwtSecret := getEnv("JWT_SECRET", "tunorth-hub-super-secure-jwt-secret-key-2026")
 	uploadDir := getEnv("UPLOAD_DIR", "./uploads")

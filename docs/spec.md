@@ -13,7 +13,7 @@
 * **สถาบันการศึกษา:** โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (Triam Udom Suksa Phak Nuea School)
 * **ผู้ใช้งานในระบบ (Total Registered Users):** ~2,000 คน (นักเรียน ครู และ Admin)
 * **ผู้ใช้งานพร้อมกันสูงสุด (Peak Concurrent Active Users):** ~150 คน
-* **สภาพแวดล้อมการติดตั้ง (Deployment Environment):** เซิร์ฟเวอร์โรงเรียน (Ubuntu Server 22.04 LTS On-Premise) ผ่าน Docker Containers
+* **สภาพแวดล้อมการติดตั้ง (Deployment Environment):** เซิร์ฟเวอร์โรงเรียน On-Premise (Ubuntu Server 24.04 LTS บน HP ProLiant ML350 G6) เชื่อมโยงผ่านเครือข่าย Docker Network `tunorth-net` ร่วมกับระบบอื่นๆ ของโรงเรียน พร้อมการเข้าถึงผ่านอินเทอร์เน็ตด้วย **Cloudflare Tunnel (`hub.tn.ac.th`)** และการเข้าถึงผ่านเครือข่าย LAN ด้วย **Local Nginx Reverse Proxy (Port 8008 & LAN Portal Port 80: `http://192.168.165.11:8008`)**
 
 ### 1.3 สถาปัตยกรรมทางเทคโนโลยีและการออกแบบ (Tech Stack & Architecture)
 * **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Lucide React
@@ -30,14 +30,14 @@
 * **Frontend Tooling & Package Manager:** **Bun** *(ใช้งาน Bun ทั้งหมดสำหรับ Frontend Dependencies, Dev และ Scripts โดยโค้ดฝั่ง Frontend ห้ามใส่ Semicolon เด็ดขาด)*
 * **Backend API:** **Go 1.25+** + **Fiber Framework (v2)** + **GORM (ORM)** Clean Architecture
 * **Hot Reload & Dev Engine:** **Air (v1.64+)** รองรับ Live Reload ทั้งบน Local Machine และ Docker Development (`.air.toml`, `Dockerfile.dev`, `docker-compose.yml`)
-* **Database & Cache:** **PostgreSQL 17** + **Redis 7**
-* **Media & File Storage:** Local Volume Mount บน Host Machine ผ่าน Docker Mount Path (`/var/tunorth_data/uploads`) พร้อมตัวช่วยแปลง Relative Path (`getMediaUrl()`)
+* **Database & Cache:** **PostgreSQL 17 (`hub-db`)** + **Redis 7 (`hub-redis`)** แยก Container เฉพาะแอป ภายใต้เครือข่ายกลาง `tunorth-net`
+* **Media & File Storage:** Local Volume Mount บน Host Machine ผ่าน Docker Mount Path (`../../data/uploads/hub:/var/tunorth_data/uploads`) พร้อมตัวช่วยแปลง Relative Path (`getMediaUrl()`) และบีบอัดสำรองข้อมูลอัตโนมัติผ่าน Daily Backup Script
 * **Admin System Settings & Diagnostics:** ควบคุมข้อมูลโรงเรียน, ลายเซ็นผู้อำนวยการบนเกียรติบัตร, แถบประกาศทั่วทั้งระบบ (Banner), สวิตช์ปิดปรับปรุงระบบ (Maintenance Guard), และแดชบอร์ดตรวจสอบสุขภาพ PostgreSQL, Redis, Storage และ Go Runtime
 * **Landing Page Management System (Landing Page CMS):** แดชบอร์ดจัดการหน้าแรกสำหรับ Admin (`/admin/landing`) รูปแบบ Card Grid Tabs 7 หมวดหมู่ (Hero, Stats, Features, Featured Courses, Steps, FAQ, CTA/Footer) พร้อมระบบจัดการรูปภาพ Hero Banner และพรีวิวแบบ Real-time บนหน้าแรก (`/`)
 * **Interactive Code Playground:** Client-Side WebAssembly (Pyodide v0.26.2 สำหรับ Python) + Monaco Code Editor รองรับการแสดงผล Console, Stderr/Stdout capture, และคำสั่ง `input()` แบบ Interactive ผ่าน `pyodide.setStdin`
 * **Assessment & Evaluation:** ระบบ Assignment Submission & Teacher Grading, Interactive Quiz Engine พร้อมระบบ Batch Quiz Import (.xlsx / .csv), ระบบเฉลยตรวจคะแนนอัตโนมัติ และการจำกัดจำนวนครั้งการทำแบบทดสอบ (`max_attempts`)
 * **Certificate & Verification Engine:** ระบบออกรหัสรับรองมาตรฐาน `TUNorth-YYYY-XXXX-XXXX`, หน้าต่างเกียรติบัตรพร้อมตราสัญลักษณ์ ลายเซ็นผู้บริหาร และ **Dynamic QR Code** เชื่อมโยงตรงสู่ระบบตรวจสอบความถูกต้องแบบ Real-time, รองรับการสั่งพิมพ์ A4 แนวนอน (1-Page Print Landscape), พอร์ทัลค้นหาและตรวจสอบความถูกต้องสาธารณะ (`/verify`) พร้อม Search Box และกล้องสแกน QR Code (Webcam & File Upload), และหน้ารายละเอียดการรับรองรายบุคคล (`/verify/[code]`)
-* **DevOps & Proxy:** Nginx Reverse Proxy + Docker & Docker Compose (Production & Dev Stacks)
+* **DevOps & Integration:** Nginx Reverse Proxy (Dedicated Port 8008, `client_max_body_size 500M`) + Cloudflare Tunnel (`hub.tn.ac.th`) + Docker Compose บน `tunorth-net` + ระบบ Auto-Backup Database & Uploads ผ่าน CronJob [ดูแผนงานและ Checklist ใน docs/deployment_analysis_and_plan.md]
 
 ---
 
@@ -355,10 +355,9 @@
 ### 📌 Phase 6: Testing, Performance Hardening & Production Deployment
 - [x] Implement **Google Lighthouse Performance & Accessibility Hardening** (Optimizing LCP, CLS to 0.00, WCAG 2.5.3 Accessibility 100%, Zero-Console Error, Best Practices 100%, SEO 100%, Core Web Vitals) [ดูแผนงานและ Checklist ย่อยใน docs/lighthouse_optimization_plan.md]
 - [x] Conduct Load Testing for 150 Concurrent Active Users (Video Streaming & API Benchmark) [ดูแผนงานและ Checklist ย่อยใน docs/load_testing_benchmark_plan.md]
-- [ ] Configure Nginx Reverse Proxy with Rate Limiting, Static Asset Caching, and SSL Certificates
-- [ ] Implement Automated Database Backup Shell Script (`pg_dump` Cron Job)
-- [ ] Final User Acceptance Testing (UAT) with Mock Teachers and High School Students
-- [ ] Deploy Final Build to School Ubuntu Server via Docker Compose
+- [x] Configure Unified Infrastructure, Database & Cache Isolation, Nginx Reverse Proxy (Port 8008), Cloudflare Tunnel (`hub.tn.ac.th`), and Automated Daily Backup Integration [ดูแผนงานและ Checklist ย่อยใน docs/deployment_analysis_and_plan.md]
+- [x] Final User Acceptance Testing (UAT) with Mock Teachers and High School Students
+- [x] Deploy Final Build to School Ubuntu Server via Docker Compose and TUNorth Automation Scripts (`setup.sh`, `deploy.sh`, `backup.sh`, `restore_db.sh`)
 
 ---
 
@@ -402,11 +401,22 @@ cd frontend
 bun run build
 ```
 
-### 5.5 การรัน Production Stack
-```powershell
-# รันทั้งระบบ Production Stack (Postgres, Redis, Go Backend, Next.js Frontend, Nginx)
-docker compose -f docker-compose.prod.yml up -d --build
+### 5.5 การรันบนระบบ Production ของโรงเรียน (TUNorth Unified Deployment)
+```bash
+# 1. การติดตั้งโครงสร้างพื้นฐานกลางครั้งแรก (Databases, Nginx Port 8008, Cloudflare Tunnel)
+cd ~/TUNorth
+./scripts/setup.sh
+
+# 2. การสั่ง Deploy ทุกระบบของโรงเรียนรวมถึง TUNorth-Hub
+./scripts/deploy.sh
+
+# 3. การ Re-deploy เฉพาะ TUNorth-Hub แบบไม่กระทบระบบอื่น
+cd ~/TUNorth/apps/Hub
+docker compose up -d --build
+
+# 4. สั่งรัน Database Seeder ครั้งแรกบนเซิร์ฟเวอร์
+docker exec -it hub-backend /app/seed
 ```
 
 ---
-*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-5 สมบูรณ์ 100%: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบนำเข้าชุดข้อสอบแบบ Batch (Quiz & Question Import Engine CSV/XLSX), การปรับปรุง Modal Architecture ป้องกันข้อมูลล้นกรอบ (Responsive Frame Optimization), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats), ระบบแจ้งเตือน Sonner Toast แบบครบวงจร และระบบกำหนดเวลาบทเรียนแบบครบวงจร (Lesson Time & Schedule Management System, Drip Release, Expiry Date, Anti-Skipping Timer with Window Focus & Page Visibility API, LocalStorage Persistent Timer across Page Reloads, and Total Course Duration)*
+*เอกสารนี้ได้รับการปรับปรุงล่าสุดให้ครอบคลุม Phase 1-6 สมบูรณ์: สถาปัตยกรรมระบบสำหรับ โรงเรียนเตรียมอุดมศึกษา ภาคเหนือ (TUNorth-Hub), โครงสร้างฐานข้อมูลครบ 11 ตารางรวม SystemSettings และ CourseCategories, API Endpoints Matrix ที่ตรงกับ Backend จริงรวมถึงระบบหมวดหมู่รายวิชา (Course Categories CRUD & Reorder), ระบบยกเลิกการลงทะเบียนและถอนนักเรียน (Course Unenrollment & Student Management), Client-Side Code Playground (Pyodide & Monaco Editor), ระบบกำหนดโควตาจำนวนครั้งทำแบบทดสอบ (Quiz Max Attempts), ระบบนำเข้าชุดข้อสอบแบบ Batch (Quiz & Question Import Engine CSV/XLSX), การปรับปรุง Modal Architecture ป้องกันข้อมูลล้นกรอบ (Responsive Frame Optimization), ระบบออกเกียรติบัตรทางการ, ระบบ Admin System Settings (ข้อมูลโรงเรียน, โลโก้, Favicon, ธีมสี, นโยบายเปิดรับสมัคร, โหมดปิดปรับปรุงระบบ และ System Health Diagnostics), ระบบจัดการหน้าแรก (Landing Page CMS Card Grid Tabs 7 หมวดหมู่), ระบบโปรไฟล์ผู้ใช้งาน (User Profile System & Role-Adaptive Stats), ระบบแจ้งเตือน Sonner Toast แบบครบวงจร, ระบบกำหนดเวลาบทเรียน (Lesson Time & Schedule Management System), การปรับแต่ง Google Lighthouse 100% Core Web Vitals, Load Testing 150 Concurrent Users และแผนการ Deploy เชื่อมโยงระบบกลางโรงเรียน (Port 8008, hub.tn.ac.th, hub-db, hub-redis และ Daily Auto-Backup ใน docs/deployment_analysis_and_plan.md)*

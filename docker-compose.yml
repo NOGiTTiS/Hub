@@ -1,37 +1,47 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: tunorth_postgres_dev
-    restart: unless-stopped
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hub-backend
+    restart: always
+    networks:
+      - tunorth-net
+    volumes:
+      - ../../data/uploads/hub:/var/tunorth_data/uploads
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tunorth_hub}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      TZ: Asia/Bangkok
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tunorth_hub}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - APP_ENV=production
+      - PORT=8080
+      - DB_HOST=${DB_HOST:-hub-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-hVLcvCI17kc.r6XZ}
+      - DB_NAME=${DB_NAME:-tunorth_hub}
+      - REDIS_URL=${REDIS_URL:-hub-redis:6379}
+      - JWT_SECRET=${JWT_SECRET:-tunorth-hub-super-secure-jwt-secret-key-2026}
+      - UPLOAD_DIR=/var/tunorth_data/uploads
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://hub.tn.ac.th,http://hub.local,http://192.168.165.11:8008,http://localhost:3000}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
 
-  redis:
-    image: redis:7-alpine
-    container_name: tunorth_redis_dev
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data_dev:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://hub.tn.ac.th}
+    container_name: hub-frontend
+    restart: always
+    networks:
+      - tunorth-net
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - API_INTERNAL_URL=http://hub-backend:8080
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://hub.tn.ac.th}
+    depends_on:
+      - backend
 
-volumes:
-  postgres_data_dev:
-  redis_data_dev:
+networks:
+  tunorth-net:
+    external: true

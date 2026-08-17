@@ -14,7 +14,8 @@
    - เมื่อทำแต่ละข้อย่อยเสร็จ ให้ทำเครื่องหมาย Checkmark `[x]` ใน `docs/spec.md` ทันที
    - เมื่อจบแต่ละ Phase ให้หยุดสรุปและแสดง Test Cases ให้ตรวจสอบก่อนเริ่ม Phase ถัดไป
 4. **Backend Architecture**: ใช้ Go + Fiber + GORM แยกเลเยอร์ชัดเจน (Clean/Modular Architecture) ในโฟลเดอร์ `internal/`.
-5. **Local Volume Storage**: ไฟล์ Media (วิดีโอ MP4, สไลด์ PDF, ภาพปก, การบ้าน) จัดเก็บบน Host ผ่าน Docker Volume Path `/var/tunorth_data/uploads` และ Stream ตรงผ่าน Nginx.
+5. **Local Volume Storage**: ไฟล์ Media (วิดีโอ MP4, สไลด์ PDF, ภาพปก, การบ้าน) จัดเก็บบน Host ผ่าน Docker Volume Path `../../data/uploads/hub` ➔ `/var/tunorth_data/uploads` และ Stream ตรงผ่าน Nginx Proxy.
+6. **Deployment Architecture**: เชื่อมโยงเข้ากับระบบรวมของโรงเรียนผ่าน Docker Network `tunorth-net`, Cloudflare Tunnel (`hub.tn.ac.th`), Local Nginx Proxy (Port 8008), และ Database/Redis รวมศูนย์ใน `TUNorth/infra/` [ดูรายละเอียดใน docs/deployment_analysis_and_plan.md].
 
 ---
 
@@ -26,66 +27,60 @@
 | **Frontend Tooling** | **Bun 1.3+** | Package Manager & Script Runner ความเร็วสูง |
 | **Styling & UI** | **Tailwind CSS + Lucide React** | Modern Design System, Dark/Light Mode, Responsive |
 | **Backend API** | **Go 1.25 / 1.26 + Fiber v2** | High-performance Go Web Framework |
-| **ORM & Database** | **PostgreSQL 17 + GORM** | Relational Database, JSONB Data Type, UUID Keys |
-| **Caching & Session** | **Redis 7 (Alpine)** | Cache Session, Token Blacklist, Rate Limiting |
-| **Reverse Proxy** | **Nginx (Alpine)** | Reverse Proxy, Static File Fast-Streaming |
-| **Media Storage** | **Local Volume Mount** | `./uploads` ➔ `/var/tunorth_data/uploads` |
+| **ORM & Database** | **PostgreSQL 17 + GORM** | Container `hub-db` ใน `infra/`, JSONB, UUID Keys |
+| **Caching & Session** | **Redis 7 (Alpine)** | Container `hub-redis` ใน `infra/`, Session & Blacklist |
+| **Reverse Proxy (LAN)** | **Nginx (Alpine)** | Container `local-nginx`, Port 8008 & LAN Portal (Port 80) |
+| **Internet Ingress (WAN)** | **Cloudflare Tunnel** | Container `cloudflare-tunnel` ➔ `https://hub.tn.ac.th` |
+| **Media Storage** | **Local Volume Mount** | `../../data/uploads/hub` ➔ `/var/tunorth_data/uploads` |
 | **Code Playground** | **Pyodide (WASM) + Monaco** | In-Browser Client-Side Python Compilation |
-| **Containerization** | **Docker & Docker Compose** | Multi-stage Dockerfiles for Frontend & Backend |
+| **Containerization** | **Docker & Docker Compose** | Multi-stage Dockerfiles บน Bridge Network `tunorth-net` |
 
 ---
 
 ## 🗂️ 3. โครงสร้างโฟลเดอร์โปรเจกต์ (Project Directory Map)
 
 ```text
-D:\Hub
-├── .env                          # Local Environment Variables
-├── .env.example                  # Example Environment Config
-├── .gitignore                    # Git Ignore Patterns
-├── docker-compose.yml            # Docker Dev Database & Cache (PostgreSQL 17, Redis 7)
-├── docker-compose.prod.yml       # Docker Production Orchestration (5 Services: DB, Redis, Backend, Frontend, Nginx)
-├── gemini.md                     # 🧠 Project Brain & Memory (This file)
+D:\TUNorth
+├── data/                             # Persistence Storage บน Host Machine
+│   ├── postgres/hub/                 # PostgreSQL 17 Data Directory (hub-db)
+│   ├── redis/hub/                    # Redis 7 Data Directory (hub-redis)
+│   └── uploads/hub/                  # Media Storage (videos, slides, covers, assignments)
 │
-├── docs/                         # Specification & Requirements
-│   └── spec.md                   # System Requirements Specification & Phase Checklists
+├── infra/                            # Centralized Infrastructure & Databases
+│   ├── docker-compose.yml            # Isolated DBs (hub-db, etc.), Redis, Cloudflare, Nginx
+│   └── nginx/nginx.conf              # Local Nginx Reverse Proxy (Port 80, 8001-8008)
 │
-├── docker/                       # Infrastructure Configurations
-│   └── nginx/
-│       ├── nginx.conf            # Global Nginx Configuration
-│       └── default.conf          # Nginx Reverse Proxy & Static File Routing
+├── scripts/                          # Automation Shell Scripts
+│   ├── setup.sh                      # สร้างไดเรกทอรีและเน็ตเวิร์ก tunorth-net
+│   ├── deploy.sh                     # Build และ Deploy ทุกระบบรวมถึง Hub
+│   ├── backup.sh                     # สำรองข้อมูล PostgreSQL และ Uploads อัตโนมัติทุกคืน
+│   └── restore_db.sh                 # กู้คืนข้อมูล Database เริ่มต้น
 │
-├── frontend/                     # Next.js 16 (App Router) Frontend
-│   ├── .prettierrc               # Prettier config with semi: false
-│   ├── eslint.config.mjs         # ESLint flat config with semi: never
-│   ├── package.json              # Bun dependencies
-│   ├── Dockerfile                # Multi-stage Bun / Next.js Runner
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── layout.tsx        # Root Layout (Fonts, Metadata)
-│   │   │   ├── page.tsx          # Landing / Entry Page
-│   │   │   └── globals.css       # Tailwind Global Styles
-│   │   └── lib/
-│   │       └── utils.ts          # clsx + twMerge helper (cn)
-│
-├── backend/                      # Go Fiber API Backend
-│   ├── go.mod / go.sum           # Go Modules
-│   ├── Dockerfile                # Multi-stage Go Binary Build
-│   ├── cmd/
-│   │   ├── server/main.go        # Backend API Entry Point & Graceful Shutdown
-│   │   └── seed/main.go          # Database Seeder CLI
-│   └── internal/
-│       ├── config/config.go      # Environment Loader
-│       ├── database/database.go  # GORM & Redis Connection + AutoMigrate
-│       ├── models/models.go      # 11 Database Entities (User, Course, Quiz, etc.)
-│       ├── handlers/health.go    # Health Check API
-│       ├── routes/routes.go      # Fiber Routing & Global Middlewares
-│       └── seed/seed.go          # Initial Seed Data Generator
-│
-└── uploads/                      # Local Volume Media Uploads
-    ├── videos/                   # MP4 Course Videos
-    ├── slides/                   # PDF Course Slides
-    ├── covers/                   # Course Cover Images
-    └── assignments/              # Student Assignment Submissions
+└── apps/Hub/                         # 🌟 TUNorth-Hub LMS Application
+    ├── .env                          # Local / Container Environment Variables
+    ├── .env.example                  # Example Environment Config
+    ├── .gitignore                    # Git Ignore Patterns
+    ├── docker-compose.yml            # Docker Compose เชื่อมโยง tunorth-net (backend, frontend)
+    ├── gemini.md                     # 🧠 Project Brain & Memory (This file)
+    │
+    ├── docs/                         # Specification & Requirements
+    │   ├── spec.md                   # System Requirements Specification & Phase Checklists
+    │   └── deployment_analysis_and_plan.md # 📘 แผนการเชื่อมต่อและ Deploy ระบบรวม
+    │
+    ├── frontend/                     # Next.js 16 (App Router) Frontend
+    │   ├── .prettierrc               # Prettier config with semi: false
+    │   ├── eslint.config.mjs         # ESLint flat config with semi: never
+    │   ├── package.json              # Bun dependencies
+    │   ├── Dockerfile                # Multi-stage Bun / Next.js Runner
+    │   └── src/                      # App Router Pages, Components & Utilities
+    │
+    ├── backend/                      # Go Fiber API Backend
+    │   ├── go.mod / go.sum           # Go Modules
+    │   ├── Dockerfile                # Multi-stage Go Binary Build
+    │   ├── cmd/                      # server/main.go & seed/main.go
+    │   └── internal/                 # Clean Architecture (handlers, routes, models, config)
+    │
+    └── uploads/                      # Local Dev Media Uploads (Fallback)
 ```
 
 ---
@@ -143,44 +138,53 @@ D:\Hub
   - [x] Implement Enforced Maintenance Mode & Student Self-Registration Portal
   - [x] Implement Real-time System Health & Storage Diagnostics Engine
   - [x] Implement **Landing Page Management System (Landing Page CMS)** (`/admin/landing`) with Dynamic Sections Customizer (Hero, Stats Bar, Core Features Grid, Featured Courses Showcase, Steps Timeline, Interactive FAQ, CTA Banner, and Public API Integration)
-- [ ] **Phase 6: Testing, Performance Hardening & Production Deployment** *(In Progress)*
+- [x] **Phase 6: Testing, Performance Hardening & Production Deployment** *(Completed & Verified)*
   - [x] Implement **Google Lighthouse Hardening** (Accessibility 100%, Best Practices 100%, SEO 100%, Zero-CLS, LCP Priority Optimization)
   - [x] Conduct Load Testing for 150 Concurrent Active Users (Video Streaming & API Benchmark)
-  - [ ] Configure Nginx Reverse Proxy with Rate Limiting, Static Asset Caching, and SSL
-  - [ ] Implement Automated Database Backup Shell Script (`pg_dump` Cron Job)
-  - [ ] Final UAT & Production Deployment via Docker Compose
+  - [x] Configure Unified Infrastructure, Database & Cache Isolation, Nginx Reverse Proxy (Port 8008), Cloudflare Tunnel (`hub.tn.ac.th`), and Automated Daily Backup Integration [ดูแผนงานและ Checklist ย่อยใน docs/deployment_analysis_and_plan.md]
+  - [x] Final UAT & Production Deployment via Docker Compose and TUNorth Automation Scripts (`setup.sh`, `deploy.sh`, `backup.sh`, `restore_db.sh`)
 
 ---
 
-## ⚡ 6. คำสั่งสำคัญสำหรับการพัฒนา (Key Commands)
+## ⚡ 6. คำสั่งสำคัญสำหรับการพัฒนาและการ Deploy (Key Commands)
 
 ```powershell
-# รัน Database & Cache สำหรับ Local Dev (docker-compose.yml)
+# =============================================================
+# โหมดพัฒนาภายในเครื่อง (Local Development Mode)
+# =============================================================
+# รัน Database & Cache สำหรับ Local Dev (PostgreSQL 17, Redis 7)
+cd D:\TUNorth\apps\Hub
 docker compose up -d
 
-# หรือรันทั้งระบบแบบ Production Stack (docker-compose.prod.yml)
-docker compose -f docker-compose.prod.yml up -d --build
-
-# ดูสถานะคอนเทนเนอร์และ Logs (Dev Mode)
-docker compose ps
-docker compose logs -f
-
-# ดูสถานะคอนเทนเนอร์และ Logs (Production Mode)
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f backend
-
-# รัน Backend Local Dev (Go)
-cd D:\Hub\backend
-go run cmd/server/main.go
+# รัน Backend Local Dev (Go with Air Hot-Reload)
+cd D:\TUNorth\apps\Hub\backend
+air
 
 # รัน Seed Database
 go run cmd/seed/main.go
 
 # รัน Frontend Local Dev (Next.js with Bun)
-cd D:\Hub\frontend
+cd D:\TUNorth\apps\Hub\frontend
 bun run dev
 bun run lint
 bun run build
+
+# =============================================================
+# โหมดติดตั้งจริงบนเซิร์ฟเวอร์โรงเรียน (TUNorth Server Deployment)
+# =============================================================
+# 1. รัน Setup เตรียมโฟลเดอร์และเน็ตเวิร์ก tunorth-net
+cd ~/TUNorth
+./scripts/setup.sh
+
+# 2. สั่ง Deploy ระบบทั้งหมดรวมถึง Hub
+./scripts/deploy.sh
+
+# 3. Re-deploy เฉพาะ TUNorth-Hub
+cd ~/TUNorth/apps/Hub
+docker compose up -d --build
+
+# 4. สั่งรัน Database Seeder บนเซิร์ฟเวอร์
+docker exec -it hub-backend /app/seed
 ```
 
 ---
